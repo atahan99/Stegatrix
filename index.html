@@ -491,6 +491,21 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
         </div>
       </details>
 
+      <!-- G. EXPORT -->
+      <details class="panel" open>
+        <summary><span class="section-letter">G.</span> Export <span class="tag">artifacts</span></summary>
+        <div class="body">
+          <div class="btns">
+            <button class="btn green" id="expPng">Export PNG with hidden payload</button>
+            <button class="btn magenta" id="expHtml">Export self-contained HTML artifact</button>
+            <button class="btn" id="expAsciiTxt">Export ASCII TXT</button>
+            <button class="btn" id="expPayloadJson">Export encrypted payload JSON</button>
+            <button class="btn ghost" id="expReadme">Export README / instructions TXT</button>
+          </div>
+          <div class="hint">Filenames include a timestamp, e.g. <kbd>stegatrix-stego-YYYYMMDD-HHMM.png</kbd>.</div>
+        </div>
+      </details>
+
     </div>
 
     <!-- ===================== RIGHT COLUMN ===================== -->
@@ -660,21 +675,6 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 
     </div>
   </div>
-
-  <!-- G. EXPORT -->
-  <details class="panel" open style="margin-top:18px">
-    <summary><span class="section-letter">G.</span> Export <span class="tag">artifacts</span></summary>
-    <div class="body">
-      <div class="btns">
-        <button class="btn green" id="expPng">Export PNG with hidden payload</button>
-        <button class="btn magenta" id="expHtml">Export self-contained HTML artifact</button>
-        <button class="btn" id="expAsciiTxt">Export ASCII TXT</button>
-        <button class="btn" id="expPayloadJson">Export encrypted payload JSON</button>
-        <button class="btn ghost" id="expReadme">Export README / instructions TXT</button>
-      </div>
-      <div class="hint">Filenames include a timestamp, e.g. <kbd>stegatrix-stego-YYYYMMDD-HHMM.png</kbd>.</div>
-    </div>
-  </details>
 
   <!-- About / Limits -->
   <details class="panel" style="margin-top:18px">
