@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Stegatrix — Image → ASCII → Cipher → Stego Artifact</title>
+<style>
+/* ===========================================================================
+   Stegatrix theme — cyberpunk neon / synthwave / hacker terminal
+   All styling is embedded. No external dependencies.
+   =========================================================================== */
+:root{
+  --bg:#05000f;
+  --panel:rgba(15,10,35,0.72);
+  --panel-solid:#0b0720;
+  --cyan:#00f5ff;
+  --magenta:#ff2bd6;
+  --green:#39ff14;
+  --amber:#ffbf00;
+  --text:#e7faff;
+  --muted:#91a4b7;
+  --danger:#ff4d6d;
+  --border:rgba(0,245,255,0.28);
+  --radius:14px;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,"Courier New",monospace;
+}
+
+*{box-sizing:border-box}
+
+html,body{margin:0;padding:0}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--mono);
+  font-size:15px;
+  line-height:1.5;
+  min-height:100vh;
+  position:relative;
+  overflow-x:hidden;
+}
+
+/* Fixed layered background: radial glows + starfield noise */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  background:
+    radial-gradient(1200px 700px at 12% -10%, rgba(255,43,214,0.18), transparent 60%),
+    radial-gradient(1100px 800px at 100% 0%, rgba(0,245,255,0.16), transparent 55%),
+    radial-gradient(900px 900px at 50% 120%, rgba(57,255,20,0.10), transparent 60%),
+    var(--bg);
+}
+
+/* Scanlines overlay */
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03) 0px,
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 4px);
+  mix-blend-mode:overlay;
+  opacity:0.5;
+}
+
+a{color:var(--cyan)}
+
+.wrap{max-width:1400px;margin:0 auto;padding:24px 20px 80px}
+
+/* ---------- Header ---------- */
+header.app{
+  text-align:center;
+  padding:22px 12px 10px;
+  position:relative;
+}
+.title{
+  font-size:clamp(34px,7vw,72px);
+  font-weight:800;
+  letter-spacing:6px;
+  margin:0;
+  position:relative;
+  display:inline-block;
+  color:var(--text);
+  animation:neonPulse 5s ease-in-out infinite;
+}
+/* Soft chromatic-aberration layers that drift gently — no harsh clipping */
+.title::before,.title::after{
+  content:attr(data-text);
+  position:absolute;
+  left:0;top:0;
+  width:100%;
+  pointer-events:none;
+}
+.title::before{color:var(--magenta);opacity:0.28;animation:driftMagenta 8s ease-in-out infinite;}
+.title::after{color:var(--cyan);opacity:0.28;animation:driftCyan 8s ease-in-out infinite;}
+@keyframes neonPulse{
+  0%,100%{text-shadow:0 0 7px rgba(0,245,255,0.55),0 0 18px rgba(0,245,255,0.35);}
+  50%{text-shadow:0 0 11px rgba(0,245,255,0.75),0 0 26px rgba(0,245,255,0.5);}
+}
+@keyframes driftMagenta{
+  0%,100%{transform:translate(0,0)}
+  50%{transform:translate(-1.5px,0.5px)}
+}
+@keyframes driftCyan{
+  0%,100%{transform:translate(0,0)}
+  50%{transform:translate(1.5px,-0.5px)}
+}
+@media (prefers-reduced-motion:reduce){
+  .title{animation:none}
+  .title::before,.title::after{animation:none;display:none}
+}
+.subtitle{color:var(--muted);letter-spacing:2px;margin:6px 0 12px;font-size:14px}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.badge{
+  font-size:11px;letter-spacing:1px;text-transform:uppercase;
+  border:1px solid var(--border);border-radius:999px;
+  padding:4px 12px;color:var(--cyan);
+  background:rgba(0,245,255,0.06);
+  box-shadow:0 0 10px rgba(0,245,255,0.15) inset;
+}
+
+/* ---------- Layout grid ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+  margin-top:18px;
+}
+.col{display:flex;flex-direction:column;gap:18px;min-width:0}
+@media (max-width:960px){
+  .grid{grid-template-columns:1fr}
+}
+
+/* ---------- Panels ---------- */
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  backdrop-filter:blur(9px);
+  -webkit-backdrop-filter:blur(9px);
+  box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
+  overflow:hidden;
+}
+.panel > summary,.panel-head{
+  cursor:pointer;
+  list-style:none;
+  padding:14px 18px;
+  display:flex;align-items:center;gap:10px;
+  font-weight:700;letter-spacing:1px;
+  border-bottom:1px solid rgba(0,245,255,0.14);
+  background:linear-gradient(90deg,rgba(0,245,255,0.08),rgba(255,43,214,0.06));
+  user-select:none;
+}
+.panel > summary::-webkit-details-marker{display:none}
+.panel > summary::before{
+  content:"▸";color:var(--cyan);transition:transform .2s ease;font-size:13px;
+}
+.panel[open] > summary::before{transform:rotate(90deg)}
+.panel .tag{
+  margin-left:auto;font-size:10px;color:var(--muted);
+  border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-weight:500;letter-spacing:1px;
+}
+.panel .body{padding:16px 18px}
+
+.section-letter{
+  color:var(--magenta);font-weight:800;margin-right:2px;
+  text-shadow:0 0 8px rgba(255,43,214,0.5);
+}
+
+/* ---------- Controls ---------- */
+label{display:block;font-size:12px;color:var(--muted);letter-spacing:1px;margin:10px 0 4px;text-transform:uppercase}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row > .field{flex:1;min-width:150px}
+.field{margin-bottom:2px}
+
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;
+  background:rgba(0,0,0,0.45);
+  border:1px solid var(--border);
+  color:var(--text);
+  border-radius:9px;
+  padding:9px 11px;
+  font-family:var(--mono);
+  font-size:14px;
+  outline:none;
+}
+textarea{resize:vertical;min-height:80px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+  box-shadow:0 0 14px rgba(0,245,255,0.4);
+}
+input[type=range]{width:100%;accent-color:var(--magenta);cursor:pointer}
+input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px;cursor:pointer}
+.check{display:flex;align-items:center;gap:8px;margin:10px 0}
+.check label{margin:0;text-transform:none;color:var(--text);font-size:13px}
+.rangeval{color:var(--cyan);font-weight:700}
+
+/* ---------- Buttons ---------- */
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+button.btn{
+  font-family:var(--mono);
+  font-size:13px;letter-spacing:1px;
+  padding:9px 16px;
+  border-radius:9px;
+  border:1px solid var(--cyan);
+  background:rgba(0,245,255,0.08);
+  color:var(--cyan);
+  cursor:pointer;
+  text-transform:uppercase;
+  transition:all .15s ease;
+  box-shadow:0 0 10px rgba(0,245,255,0.12);
+}
+button.btn:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 18px rgba(0,245,255,0.4);transform:translateY(-1px)}
+button.btn:active{transform:translateY(0)}
+button.btn.magenta{border-color:var(--magenta);color:var(--magenta);background:rgba(255,43,214,0.08);box-shadow:0 0 10px rgba(255,43,214,0.15)}
+button.btn.magenta:hover{background:rgba(255,43,214,0.2);box-shadow:0 0 18px rgba(255,43,214,0.45)}
+button.btn.green{border-color:var(--green);color:var(--green);background:rgba(57,255,20,0.08)}
+button.btn.green:hover{background:rgba(57,255,20,0.18);box-shadow:0 0 18px rgba(57,255,20,0.4)}
+button.btn.ghost{border-color:var(--muted);color:var(--muted);background:transparent}
+button.btn.ghost:hover{color:var(--text);border-color:var(--text)}
+button.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
+
+/* ---------- Dropzone ---------- */
+.dropzone{
+  border:2px dashed var(--border);
+  border-radius:12px;
+  padding:26px 18px;
+  text-align:center;
+  color:var(--muted);
+  transition:all .15s ease;
+  cursor:pointer;
+  background:rgba(0,0,0,0.25);
+}
+.dropzone.drag{border-color:var(--magenta);color:var(--text);background:rgba(255,43,214,0.08);box-shadow:0 0 24px rgba(255,43,214,0.2) inset}
+.dropzone strong{color:var(--cyan)}
+.preview-img{max-width:100%;max-height:220px;border-radius:10px;border:1px solid var(--border);margin-top:12px;display:block}
+
+/* ---------- ASCII output ---------- */
+.ascii-shell{
+  background:#000;
+  border:1px solid var(--border);
+  border-radius:10px;
+  overflow:auto;
+  max-height:60vh;
+  padding:10px;
+}
+pre.ascii{
+  margin:0;
+  font-family:var(--mono);
+  white-space:pre;
+  color:var(--cyan);
+  text-shadow:0 0 6px currentColor;
+}
+pre.ascii.theme-amber{color:var(--amber)}
+pre.ascii.theme-green{color:var(--green)}
+pre.ascii.theme-mono{color:var(--cyan)}
+.ascii-empty{color:var(--muted);padding:24px;text-align:center}
+
+/* ---------- Output boxes ---------- */
+.output{
+  background:rgba(0,0,0,0.5);
+  border:1px solid var(--border);
+  border-radius:9px;
+  padding:10px 12px;
+  font-size:13px;
+  white-space:pre-wrap;
+  word-break:break-word;
+  min-height:44px;
+  color:var(--text);
+  max-height:240px;overflow:auto;
+}
+.warn{
+  color:var(--amber);
+  font-size:12px;
+  border:1px solid rgba(255,191,0,0.4);
+  background:rgba(255,191,0,0.07);
+  border-radius:8px;padding:8px 10px;margin-top:10px;
+  display:none;
+}
+.warn.show{display:block}
+.warn.danger{color:var(--danger);border-color:rgba(255,77,109,0.5);background:rgba(255,77,109,0.08)}
+.hint{color:var(--muted);font-size:12px;margin-top:6px}
+.capacity{font-size:12px;margin-top:8px}
+.capacity .ok{color:var(--green)}
+.capacity .bad{color:var(--danger)}
+
+/* ---------- Toast ---------- */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px}
+.toast{
+  border:1px solid var(--cyan);
+  background:rgba(5,0,15,0.92);
+  color:var(--text);
+  padding:12px 14px;border-radius:10px;
+  box-shadow:0 0 20px rgba(0,245,255,0.35);
+  font-size:13px;
+  animation:slidein .25s ease;
+  backdrop-filter:blur(6px);
+}
+.toast.error{border-color:var(--danger);box-shadow:0 0 20px rgba(255,77,109,0.45);color:#ffd7de}
+.toast.success{border-color:var(--green);box-shadow:0 0 20px rgba(57,255,20,0.4)}
+.toast.warn{border-color:var(--amber);box-shadow:0 0 20px rgba(255,191,0,0.4)}
+@keyframes slidein{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+
+/* ---------- About list ---------- */
+ul.limits{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+ul.limits li{margin:6px 0}
+ul.limits b{color:var(--text)}
+
+.debug-canvas-wrap{margin-top:12px}
+canvas#work{display:none;max-width:100%;border:1px dashed var(--muted);border-radius:8px;margin-top:8px}
+canvas#work.show{display:block}
+
+.mini{font-size:11px;color:var(--muted)}
+kbd{background:rgba(0,245,255,0.1);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--cyan)}
+.split{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1;min-width:120px}
+hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
+
+/* ---------- Workflow steps bar ---------- */
+.workflow{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+  margin:14px auto 0;max-width:900px;
+}
+.step{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;color:var(--muted);
+  border:1px solid var(--border);border-radius:10px;
+  padding:6px 12px;background:rgba(0,245,255,0.04);
+}
+.step b{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--magenta);color:#05000f;font-size:11px;font-weight:800;
+  box-shadow:0 0 10px rgba(255,43,214,0.5);
+}
+.step .arrow{color:var(--cyan);margin:0 2px}
+
+/* ---------- Output header + copy button ---------- */
+.output-head{display:flex;align-items:center;gap:8px;margin:14px 0 4px}
+.output-head label{margin:0}
+.copybtn{
+  margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:1px;
+  border:1px solid var(--border);background:rgba(0,245,255,0.06);color:var(--cyan);
+  border-radius:7px;padding:3px 10px;cursor:pointer;text-transform:uppercase;transition:all .15s ease;
+}
+.copybtn:hover{background:rgba(0,245,255,0.18);box-shadow:0 0 12px rgba(0,245,255,0.3)}
+.copybtn:disabled{opacity:0.4;cursor:not-allowed}
+.pw-wrap{position:relative}
+.pw-toggle{
+  position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;
+  font-family:var(--mono);letter-spacing:1px;padding:2px 4px;
+}
+.pw-toggle:hover{color:var(--cyan)}
+.rec-badge{
+  font-size:10px;color:var(--green);border:1px solid rgba(57,255,20,0.5);
+  background:rgba(57,255,20,0.08);border-radius:6px;padding:1px 7px;margin-left:6px;letter-spacing:1px;
+}
+.payload-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.payload-meta .rdy{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===================== A. HEADER ===================== -->
+  <header class="app">
+    <h1 class="title" data-text="STEGATRIX">STEGATRIX</h1>
+    <div class="subtitle">Image → ASCII → Cipher → Stego Artifact</div>
+    <div class="badges">
+      <span class="badge">offline</span>
+      <span class="badge">browser-only</span>
+      <span class="badge">no upload</span>
+    </div>
+    <div class="workflow" aria-label="Workflow steps">
+      <span class="step"><b>1</b> Upload image</span>
+      <span class="arrow">→</span>
+      <span class="step"><b>2</b> Encrypt message</span>
+      <span class="arrow">→</span>
+      <span class="step"><b>3</b> Hide payload</span>
+      <span class="arrow">→</span>
+      <span class="step"><b>4</b> Export / share</span>
+    </div>
+    <div class="check" style="justify-content:center">
+      <input type="checkbox" id="debugMode" />
+      <label for="debugMode">Debugging mode (show work canvas)</label>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- ===================== LEFT COLUMN ===================== -->
+    <div class="col">
+
+      <!-- B. IMAGE INPUT -->
+      <details class="panel" open>
+        <summary><span class="section-letter">B.</span> Image Input <span class="tag">source</span></summary>
+        <div class="body">
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload image: click or drag and drop">
+            <div>Drag &amp; drop an image here, or <strong>click to browse</strong></div>
+            <div class="mini">PNG / JPG / WebP / GIF — processed locally, never uploaded</div>
+            <input type="file" id="fileInput" accept="image/*" hidden />
+          </div>
+          <div class="btns">
+            <button class="btn magenta" id="demoImage">Load demo image</button>
+          </div>
+          <img id="previewImg" class="preview-img" alt="Original image preview" style="display:none" />
+
+          <div class="row">
+            <div class="field">
+              <label for="asciiWidth">ASCII width <span class="rangeval" id="asciiWidthVal">120</span></label>
+              <input type="range" id="asciiWidth" min="40" max="240" step="1" value="120" />
+            </div>
+            <div class="field">
+              <label for="brightness">Brightness <span class="rangeval" id="brightnessVal">0</span></label>
+              <input type="range" id="brightness" min="-150" max="150" step="1" value="0" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="contrast">Contrast <span class="rangeval" id="contrastVal">0</span></label>
+              <input type="range" id="contrast" min="-100" max="100" step="1" value="0" />
+            </div>
+            <div class="field">
+              <label for="fontSize">Font size <span class="rangeval" id="fontSizeVal">7</span>px</label>
+              <input type="range" id="fontSize" min="4" max="16" step="1" value="7" />
+            </div>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="lineHeight">Line height <span class="rangeval" id="lineHeightVal">1.0</span></label>
+              <input type="range" id="lineHeight" min="0.7" max="1.6" step="0.05" value="1.0" />
+            </div>
+            <div class="field">
+              <label for="charset">Character set</label>
+              <select id="charset">
+                <option value="dense">Dense — @%#*+=-:. </option>
+                <option value="blocks">Blocks — █▓▒░ </option>
+                <option value="binary">Binary — 01</option>
+                <option value="cyber">Cyber — @#&amp;$%*+=-:. </option>
+                <option value="minimal">Minimal — # .</option>
+                <option value="custom">Custom…</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" id="customCharsetField" style="display:none">
+            <label for="customCharset">Custom characters (dark → light)</label>
+            <input type="text" id="customCharset" value="@#=-. " placeholder="e.g. @#=-. " />
+          </div>
+          <div class="check"><input type="checkbox" id="invert" /><label for="invert">Invert brightness</label></div>
+          <div class="check"><input type="checkbox" id="colorMode" /><label for="colorMode">Color ASCII (use original pixel color)</label></div>
+
+          <div class="debug-canvas-wrap">
+            <canvas id="work" aria-hidden="true"></canvas>
+          </div>
+        </div>
+      </details>
+
+      <!-- C. ASCII FORGE -->
+      <details class="panel" open>
+        <summary><span class="section-letter">C.</span> ASCII Forge <span class="tag">preview</span></summary>
+        <div class="body">
+          <div class="row">
+            <div class="field">
+              <label for="theme">Render theme</label>
+              <select id="theme">
+                <option value="mono">Monochrome neon</option>
+                <option value="color">Color ASCII (pixel color)</option>
+                <option value="amber">Amber terminal</option>
+                <option value="green">Matrix green</option>
+                <option value="split">Magenta / cyan split glow</option>
+              </select>
+            </div>
+          </div>
+          <div class="ascii-shell" id="asciiShell">
+            <div class="ascii-empty" id="asciiEmpty">Upload an image to forge ASCII art…</div>
+            <pre class="ascii theme-mono" id="asciiOut" aria-live="polite"></pre>
+          </div>
+          <div class="btns">
+            <button class="btn" id="copyAscii">Copy ASCII</button>
+            <button class="btn magenta" id="downloadAscii">Download .txt</button>
+            <button class="btn green" id="exportAsciiPng">Export as PNG</button>
+          </div>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- ===================== RIGHT COLUMN ===================== -->
+    <div class="col">
+
+      <!-- D. CIPHER ENGINE -->
+      <details class="panel" open>
+        <summary><span class="section-letter">D.</span> Cipher Engine <span class="tag">encrypt</span></summary>
+        <div class="body">
+          <label for="secret">Secret message</label>
+          <textarea id="secret" placeholder="Type the message to encrypt / encode…"></textarea>
+
+          <div class="row">
+            <div class="field">
+              <label for="cipherMode">Mode</label>
+              <select id="cipherMode">
+                <option value="base64">None / Base64 wrapper</option>
+                <option value="caesar">Caesar cipher (puzzle)</option>
+                <option value="atbash">Atbash cipher (puzzle)</option>
+                <option value="vigenere">Vigenère cipher (puzzle)</option>
+                <option value="xor">XOR text cipher (puzzle)</option>
+                <option value="aes">AES-GCM (secure)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field cipher-opt" data-for="caesar" style="display:none">
+            <label for="caesarShift">Caesar shift</label>
+            <input type="number" id="caesarShift" value="13" min="-25" max="25" step="1" />
+          </div>
+          <div class="field cipher-opt" data-for="vigenere" style="display:none">
+            <label for="vigenereKey">Vigenère key (letters)</label>
+            <input type="text" id="vigenereKey" placeholder="e.g. GHOST" />
+          </div>
+          <div class="field cipher-opt" data-for="xor" style="display:none">
+            <label for="xorKey">XOR key</label>
+            <input type="text" id="xorKey" placeholder="any characters" />
+          </div>
+          <div class="cipher-opt" data-for="aes" style="display:none">
+            <div class="row">
+              <div class="field">
+                <label for="aesPassword">Password <span class="rec-badge">secure</span></label>
+                <div class="pw-wrap">
+                  <input type="password" id="aesPassword" placeholder="strong passphrase" />
+                  <button type="button" class="pw-toggle" data-target="aesPassword" aria-label="Show or hide password">show</button>
+                </div>
+              </div>
+              <div class="field">
+                <label for="aesIterations">PBKDF2 iterations</label>
+                <input type="number" id="aesIterations" value="250000" min="50000" max="2000000" step="10000" />
+              </div>
+            </div>
+          </div>
+
+          <div class="warn" id="cipherWarn">Puzzle cipher only; not secure.</div>
+
+          <div class="btns">
+            <button class="btn green" id="encryptBtn">Encrypt</button>
+            <button class="btn" id="decryptBtn">Decrypt</button>
+            <button class="btn ghost" id="clearCipher">Clear</button>
+          </div>
+
+          <div class="output-head">
+            <label>Encrypted payload</label>
+            <button class="copybtn" data-copy="payloadOut">Copy</button>
+          </div>
+          <div class="output" id="payloadOut" aria-live="polite"></div>
+          <div class="payload-meta" id="payloadMeta"></div>
+          <div class="output-head">
+            <label>Decrypted result</label>
+            <button class="copybtn" data-copy="plainOut">Copy</button>
+          </div>
+          <div class="output" id="plainOut" aria-live="polite"></div>
+        </div>
+      </details>
+
+      <!-- E. STEGO LAB -->
+      <details class="panel" open>
+        <summary><span class="section-letter">E.</span> Stego Lab <span class="tag">hide</span></summary>
+        <div class="body">
+          <label for="stegoMode">Hide mode</label>
+          <select id="stegoMode">
+            <option value="ascii">Visible ASCII payload block</option>
+            <option value="png">PNG LSB steganography</option>
+            <option value="html">Self-contained HTML payload</option>
+            <option value="zw">Zero-width text stego (experimental)</option>
+          </select>
+
+          <div class="capacity" id="capacityBox" style="display:none"></div>
+          <div class="warn" id="stegoWarn"></div>
+
+          <div class="field" id="zwCoverField" style="display:none">
+            <label for="zwCover">Cover text (zero-width chars hide inside this)</label>
+            <input type="text" id="zwCover" value="hello there" placeholder="visible carrier text" />
+          </div>
+
+          <div class="btns">
+            <button class="btn green" id="hideBtn">Hide payload</button>
+          </div>
+          <div class="hint">Uses the encrypted payload from the Cipher Engine above. Encrypt a message first.</div>
+
+          <div class="output-head">
+            <label>Stego output</label>
+            <button class="copybtn" data-copy="stegoOut" id="copyStego">Copy</button>
+            <button class="copybtn" id="saveStegoTxt">Save .txt</button>
+          </div>
+          <div class="output" id="stegoOut" aria-live="polite"></div>
+        </div>
+      </details>
+
+      <!-- F. IMPORT / DECODE -->
+      <details class="panel" open>
+        <summary><span class="section-letter">F.</span> Import / Decode <span class="tag">recover</span></summary>
+        <div class="body">
+          <div class="dropzone" id="importDrop" tabindex="0" role="button" aria-label="Import artifact: click or drag and drop">
+            <div>Drop a <strong>PNG / TXT / HTML</strong> artifact, or <strong>click to browse</strong></div>
+            <input type="file" id="importInput" accept=".png,.txt,.html,.htm,image/png,text/plain,text/html" hidden />
+          </div>
+          <div class="field" style="margin-top:12px">
+            <label for="importText">…or paste artifact text (ASCII block, zero-width, HTML, or raw payload)</label>
+            <textarea id="importText" placeholder="Paste the Stego output / payload text here…"></textarea>
+          </div>
+          <div class="btns">
+            <button class="btn" id="decodePaste">Decode pasted text</button>
+          </div>
+          <div class="output-head">
+            <label>Extracted payload</label>
+            <button class="copybtn" data-copy="extractOut">Copy</button>
+          </div>
+          <div class="output" id="extractOut" aria-live="polite"></div>
+
+          <hr class="sep" />
+          <div class="mini">Decrypt the extracted payload using the settings below (must match how it was encrypted).</div>
+          <div class="row">
+            <div class="field">
+              <label for="decMode">Decode mode</label>
+              <select id="decMode">
+                <option value="auto">Auto (AES / detect)</option>
+                <option value="base64">Base64 wrapper</option>
+                <option value="caesar">Caesar</option>
+                <option value="atbash">Atbash</option>
+                <option value="vigenere">Vigenère</option>
+                <option value="xor">XOR</option>
+                <option value="aes">AES-GCM</option>
+              </select>
+            </div>
+          </div>
+          <div class="field dec-opt" data-decfor="caesar" style="display:none"><label for="decCaesar">Caesar shift</label><input type="number" id="decCaesar" value="13" /></div>
+          <div class="field dec-opt" data-decfor="vigenere xor" style="display:none"><label for="decKey">Vigenère / XOR key</label><input type="text" id="decKey" placeholder="key" /></div>
+          <div class="field dec-opt" data-decfor="auto aes" style="">
+            <label for="decPassword">AES password</label>
+            <div class="pw-wrap">
+              <input type="password" id="decPassword" placeholder="password" />
+              <button type="button" class="pw-toggle" data-target="decPassword" aria-label="Show or hide password">show</button>
+            </div>
+          </div>
+          <div class="btns">
+            <button class="btn green" id="recoverBtn">Recover message</button>
+          </div>
+          <div class="output-head">
+            <label>Recovered plaintext</label>
+            <button class="copybtn" data-copy="recoverOut">Copy</button>
+          </div>
+          <div class="output" id="recoverOut" aria-live="polite"></div>
+        </div>
+      </details>
+
+    </div>
+  </div>
+
+  <!-- G. EXPORT -->
+  <details class="panel" open style="margin-top:18px">
+    <summary><span class="section-letter">G.</span> Export <span class="tag">artifacts</span></summary>
+    <div class="body">
+      <div class="btns">
+        <button class="btn green" id="expPng">Export PNG with hidden payload</button>
+        <button class="btn magenta" id="expHtml">Export self-contained HTML artifact</button>
+        <button class="btn" id="expAsciiTxt">Export ASCII TXT</button>
+        <button class="btn" id="expPayloadJson">Export encrypted payload JSON</button>
+        <button class="btn ghost" id="expReadme">Export README / instructions TXT</button>
+      </div>
+      <div class="hint">Filenames include a timestamp, e.g. <kbd>stegatrix-stego-YYYYMMDD-HHMM.png</kbd>.</div>
+    </div>
+  </details>
+
+  <!-- About / Limits -->
+  <details class="panel" style="margin-top:18px">
+    <summary>About / Limits <span class="tag">honesty</span></summary>
+    <div class="body">
+      <ul class="limits">
+        <li><b>ASCII conversion is lossy and visual only.</b> The original image cannot be reconstructed from ASCII.</li>
+        <li><b>Classical ciphers (Caesar, Atbash, Vigenère, XOR) are puzzle/aesthetic ciphers, not secure.</b></li>
+        <li><b>AES-GCM mode is the secure encryption option</b> (PBKDF2-SHA256 key derivation, random salt + IV).</li>
+        <li><b>LSB steganography can be destroyed</b> by compression, resizing, screenshots, or social-media re-encoding. Export as PNG only.</li>
+        <li><b>Zero-width stego is experimental</b> and may be stripped by websites, editors, or messengers.</li>
+        <li><b>All processing happens locally in your browser.</b> Nothing is uploaded to any server.</li>
+      </ul>
+    </div>
+  </details>
+
+</div>
+
+<div id="toasts" aria-live="assertive"></div>
+
+<script>
+/* ===========================================================================
+   STEGATRIX — single-file app logic
+   Modules (all in this one script, no frameworks):
+     1. Utilities   : base64 / UTF-8 / bits / DOM / timestamp
+     2. State        : single `state` object
+     3. Toast        : neon status / error area
+     4. Image        : load, draw, sample -> ASCII
+     5. Cipher       : classical ciphers + AES-GCM (Web Crypto)
+     6. Stego        : ASCII block / PNG LSB / HTML / zero-width
+     7. Import/Decode: extract payload from PNG/TXT/HTML + decrypt
+     8. Export        : blob downloads with timestamped names
+   Internal format identifiers (used on write + read):
+     PNG magic header : "STGTRX1"
+     ASCII markers     : ---BEGIN/END STEGATRIX PAYLOAD---
+     HTML script id    : stegatrix-payload
+     payload.app       : "STEGATRIX"
+     zero-width prefix  : ZW magic sentinel
+   =========================================================================== */
+(function () {
+"use strict";
+
+/* -------------------- 1. Utilities -------------------- */
+const $ = (id) => document.getElementById(id);
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+const PNG_MAGIC = "STGTRX1";                       // 7 ASCII bytes
+const ASCII_BEGIN = "---BEGIN STEGATRIX PAYLOAD---";
+const ASCII_END = "---END STEGATRIX PAYLOAD---";
+const HTML_PAYLOAD_ID = "stegatrix-payload";
+const ZW_MAGIC = "\u2063\u2063";                   // invisible separator sentinel
+const ZW_ZERO = "\u200B";                          // bit 0
+const ZW_ONE = "\u200C";                            // bit 1
+
+// UTF-8 helpers
+const stringToUtf8Bytes = (str) => enc.encode(str);
+const utf8BytesToString = (bytes) => dec.decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+
+// Base64 <-> bytes (binary safe)
+function bytesToBase64(bytes) {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+// Base64 for arbitrary unicode text
+const textToBase64 = (str) => bytesToBase64(stringToUtf8Bytes(str));
+const base64ToText = (b64) => utf8BytesToString(base64ToBytes(b64));
+
+// Bits helpers (MSB-first per byte)
+function bytesToBits(bytes) {
+  const bits = new Uint8Array(bytes.length * 8);
+  let k = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    const b = bytes[i];
+    for (let j = 7; j >= 0; j--) bits[k++] = (b >> j) & 1;
+  }
+  return bits;
+}
+function bitsToBytes(bits) {
+  const n = Math.floor(bits.length / 8);
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    let b = 0;
+    for (let j = 0; j < 8; j++) b = (b << 1) | (bits[i * 8 + j] & 1);
+    out[i] = b;
+  }
+  return out;
+}
+
+// 4-byte unsigned big-endian
+function uint32ToBytesBE(n) {
+  return new Uint8Array([(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff]);
+}
+function bytesBEToUint32(b, off) {
+  return ((b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3]) >>> 0;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function timestamp() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+function debounce(fn, ms) {
+  let t;
+  return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+}
+
+/* -------------------- 2. State -------------------- */
+const state = {
+  imageFile: null,
+  imageEl: null,           // loaded HTMLImageElement
+  asciiText: "",           // plain ASCII (no color spans)
+  asciiRows: null,         // {chars, colors} for PNG export / color render
+  encryptedPayload: "",    // string produced by Cipher Engine
+  extractedPayload: "",    // string recovered by Import panel
+  settings: {
+    asciiWidth: 120,
+    brightness: 0,
+    contrast: 0,
+    invert: false,
+    colorMode: false,
+    charset: "dense",
+    customCharset: "@#=-. ",
+    fontSize: 7,
+    lineHeight: 1.0,
+    theme: "mono",
+    cipherMode: "base64",
+    stegoMode: "ascii"
+  }
+};
+
+const CHARSETS = {
+  dense: "@%#*+=-:. ",
+  blocks: "\u2588\u2593\u2592\u2591 ",
+  binary: "01",
+  cyber: "@#&$%*+=-:. ",
+  minimal: "# ."
+};
+
+/* -------------------- 3. Toast -------------------- */
+function toast(msg, type) {
+  const box = $("toasts");
+  const el = document.createElement("div");
+  el.className = "toast" + (type ? " " + type : "");
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity .3s";
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 300);
+  }, type === "error" ? 5200 : 3200);
+}
+/* -------------------- 4. Image + ASCII -------------------- */
+const work = $("work");
+const wctx = work.getContext("2d", { willReadFrequently: true });
+
+// Active charset string (dark -> light)
+function activeCharset() {
+  const s = state.settings;
+  if (s.charset === "custom") return s.customCharset && s.customCharset.length ? s.customCharset : "@#=-. ";
+  return CHARSETS[s.charset] || CHARSETS.dense;
+}
+
+// Lift very dark pixel colors so color-ASCII stays visible on the black terminal.
+// Maps each channel 0->70 and 255->255 (keeps hue, guarantees a legible floor).
+function visColor(r, g, b) {
+  const lift = (v) => Math.round(70 + v * (185 / 255));
+  return [lift(r), lift(g), lift(b)];
+}
+
+// Load an image File into state and trigger ASCII render
+function loadImageFile(file) {
+  if (!file || !file.type || !file.type.startsWith("image/")) {
+    toast("Unsupported file type. Please choose an image.", "error");
+    return;
+  }
+  state.imageFile = file;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    state.imageEl = img;
+    const p = $("previewImg");
+    p.src = img.src;
+    p.style.display = "block";
+    renderAscii();
+    updateCapacity();
+    toast("Image loaded — forging ASCII.", "success");
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); toast("Could not load that image.", "error"); };
+  img.src = url;
+}
+
+// Generate a built-in demo image so users can try the app instantly.
+function generateDemoImage() {
+  const w = 480, h = 360;
+  const cvs = document.createElement("canvas");
+  cvs.width = w; cvs.height = h;
+  const c = cvs.getContext("2d");
+  // synthwave sky gradient
+  const sky = c.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, "#1a0033");
+  sky.addColorStop(0.55, "#3a0d5c");
+  sky.addColorStop(0.75, "#ff2bd6");
+  sky.addColorStop(1, "#ffbf00");
+  c.fillStyle = sky; c.fillRect(0, 0, w, h);
+  // sun
+  const sun = c.createRadialGradient(w / 2, h * 0.62, 10, w / 2, h * 0.62, 120);
+  sun.addColorStop(0, "#fff2b0"); sun.addColorStop(1, "rgba(255,43,214,0)");
+  c.fillStyle = sun; c.beginPath(); c.arc(w / 2, h * 0.62, 120, 0, Math.PI * 2); c.fill();
+  // sun stripes
+  c.fillStyle = "#1a0033";
+  for (let y = h * 0.55; y < h * 0.75; y += 10) c.fillRect(w / 2 - 120, y, 240, 4);
+  // grid floor
+  c.strokeStyle = "rgba(0,245,255,0.7)"; c.lineWidth = 1;
+  const hz = h * 0.72;
+  for (let i = -10; i <= 10; i++) { c.beginPath(); c.moveTo(w / 2 + i * 24, hz); c.lineTo(w / 2 + i * 120, h); c.stroke(); }
+  for (let y = hz; y < h; y += 12) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
+  // skyline silhouette
+  c.fillStyle = "#0a0018";
+  for (let x = 0; x < w; x += 34) { const bh = 40 + (Math.sin(x) + 1) * 45; c.fillRect(x, hz - bh, 26, bh); }
+  const img = new Image();
+  img.onload = () => {
+    state.imageFile = null;
+    state.imageEl = img;
+    const p = $("previewImg"); p.src = img.src; p.style.display = "block";
+    renderAscii(); updateCapacity();
+    toast("Demo image loaded.", "success");
+  };
+  img.src = cvs.toDataURL("image/png");
+}
+
+// Contrast factor per standard formula; c in [-100,100]
+function contrastFactor(c) { return (259 * (c + 255)) / (255 * (259 - c)); }
+
+// Core conversion: draw resized image, sample pixels, map brightness -> chars.
+function buildAscii() {
+  const s = state.settings;
+  const img = state.imageEl;
+  if (!img) return null;
+
+  const w = Math.max(1, Math.min(240, s.asciiWidth | 0));
+  // Character cells are taller than wide -> compress height ~0.45
+  let h = Math.floor((img.height / img.width) * w * 0.45);
+  h = Math.max(1, Math.min(400, h)); // guard against runaway sizes
+
+  work.width = w;
+  work.height = h;
+  wctx.clearRect(0, 0, w, h);
+  wctx.drawImage(img, 0, 0, w, h);
+
+  let data;
+  try {
+    data = wctx.getImageData(0, 0, w, h).data;
+  } catch (e) {
+    toast("Cannot read pixels (browser security). Try a different image.", "error");
+    return null;
+  }
+
+  const chars = activeCharset();
+  const nChars = chars.length;
+  const cf = contrastFactor(s.contrast);
+  const bright = s.brightness;
+
+  const lines = [];
+  const colorLines = s.colorMode ? [] : null;
+
+  for (let y = 0; y < h; y++) {
+    let line = "";
+    let colorLine = s.colorMode ? [] : null;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let r = data[i], g = data[i + 1], b = data[i + 2];
+      // luminance
+      let lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      // brightness + contrast
+      lum = cf * (lum - 128) + 128 + bright;
+      if (lum < 0) lum = 0; else if (lum > 255) lum = 255;
+      if (s.invert) lum = 255 - lum;
+      // map brightness -> char index (dark char = index 0)
+      let idx = Math.round((lum / 255) * (nChars - 1));
+      if (idx < 0) idx = 0; else if (idx >= nChars) idx = nChars - 1;
+      line += chars[idx];
+      if (colorLine) colorLine.push([r, g, b]);
+    }
+    lines.push(line);
+    if (colorLines) colorLines.push(colorLine);
+  }
+  return { lines, colorLines, width: w, height: h };
+}
+
+// Render ASCII into the <pre>, honoring theme / color mode
+function renderAscii() {
+  const out = $("asciiOut");
+  const empty = $("asciiEmpty");
+  if (!state.imageEl) { empty.style.display = "block"; out.textContent = ""; return; }
+
+  const built = buildAscii();
+  if (!built) return;
+  empty.style.display = "none";
+
+  state.asciiText = built.lines.join("\n");
+  state.asciiRows = built;
+
+  const s = state.settings;
+  out.className = "ascii theme-" + (s.theme === "amber" ? "amber" : s.theme === "green" ? "green" : "mono");
+  out.style.fontSize = s.fontSize + "px";
+  out.style.lineHeight = s.lineHeight;
+
+  const useColor = s.colorMode || s.theme === "color";
+
+  if (useColor && built.colorLines) {
+    // Build one HTML string (assigned once) with a span per char run.
+    let html = "";
+    for (let y = 0; y < built.lines.length; y++) {
+      const line = built.lines[y];
+      const colors = built.colorLines[y];
+      for (let x = 0; x < line.length; x++) {
+        const c = visColor(colors[x][0], colors[x][1], colors[x][2]);
+        html += `<span style="color:rgb(${c[0]},${c[1]},${c[2]})">${escapeHtml(line[x])}</span>`;
+      }
+      html += "\n";
+    }
+    out.innerHTML = html;
+    out.style.textShadow = "none";
+  } else if (s.theme === "split") {
+    // magenta/cyan split glow by column position
+    let html = "";
+    for (let y = 0; y < built.lines.length; y++) {
+      const line = built.lines[y];
+      for (let x = 0; x < line.length; x++) {
+        const color = x < line.length / 2 ? "var(--magenta)" : "var(--cyan)";
+        html += `<span style="color:${color};text-shadow:0 0 6px ${color}">${escapeHtml(line[x])}</span>`;
+      }
+      html += "\n";
+    }
+    out.innerHTML = html;
+  } else {
+    out.textContent = state.asciiText; // fast path: single assignment
+    out.style.textShadow = "0 0 6px currentColor";
+  }
+}
+
+const renderAsciiDebounced = debounce(renderAscii, 120);
+
+// Export ASCII <pre> as a PNG raster
+function exportAsciiPng() {
+  if (!state.asciiRows) { toast("No ASCII yet. Upload an image first.", "error"); return; }
+  const s = state.settings;
+  const built = state.asciiRows;
+  const fs = Math.max(6, s.fontSize + 3); // a touch larger for crisp raster
+  const cw = fs * 0.6;
+  const ch = fs * s.lineHeight * 1.15;
+  const cols = built.lines[0] ? built.lines[0].length : 1;
+  const rows = built.lines.length;
+  const cvs = document.createElement("canvas");
+  cvs.width = Math.ceil(cols * cw) + 20;
+  cvs.height = Math.ceil(rows * ch) + 20;
+  const c = cvs.getContext("2d");
+  c.fillStyle = "#05000f";
+  c.fillRect(0, 0, cvs.width, cvs.height);
+  c.font = `${fs}px ${getComputedStyle(document.body).fontFamily}`;
+  c.textBaseline = "top";
+  const useColor = s.colorMode || s.theme === "color";
+  const monoColor = s.theme === "amber" ? "#ffbf00" : s.theme === "green" ? "#39ff14" : "#00f5ff";
+  for (let y = 0; y < rows; y++) {
+    const line = built.lines[y];
+    if (useColor && built.colorLines) {
+      for (let x = 0; x < line.length; x++) {
+        const col = visColor(built.colorLines[y][x][0], built.colorLines[y][x][1], built.colorLines[y][x][2]);
+        c.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+        c.fillText(line[x], 10 + x * cw, 10 + y * ch);
+      }
+    } else {
+      c.fillStyle = monoColor;
+      c.fillText(line, 10, 10 + y * ch);
+    }
+  }
+  cvs.toBlob((blob) => downloadBlob(blob, `stegatrix-ascii-${timestamp()}.png`), "image/png");
+}
+/* -------------------- 5. Cipher engine -------------------- */
+// --- Classical ciphers (puzzle / aesthetic only, NOT secure) ---
+function shiftChar(ch, shift) {
+  const code = ch.charCodeAt(0);
+  if (code >= 65 && code <= 90) return String.fromCharCode(((code - 65 + shift) % 26 + 26) % 26 + 65);
+  if (code >= 97 && code <= 122) return String.fromCharCode(((code - 97 + shift) % 26 + 26) % 26 + 97);
+  return ch; // preserve non-letters
+}
+function caesarEncrypt(text, shift) {
+  const n = ((shift % 26) + 26) % 26;
+  let out = "";
+  for (const ch of text) out += shiftChar(ch, n);
+  return out;
+}
+function caesarDecrypt(text, shift) { return caesarEncrypt(text, -shift); }
+
+function atbash(text) {
+  let out = "";
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code >= 65 && code <= 90) out += String.fromCharCode(90 - (code - 65));
+    else if (code >= 97 && code <= 122) out += String.fromCharCode(122 - (code - 97));
+    else out += ch;
+  }
+  return out;
+}
+
+function cleanVigenereKey(key) {
+  const k = (key || "").replace(/[^A-Za-z]/g, "");
+  return k.toUpperCase();
+}
+function vigenereEncrypt(text, key) {
+  const k = cleanVigenereKey(key);
+  if (!k) throw new Error("Vigenère key must contain letters.");
+  let out = "", ki = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    const isUpper = code >= 65 && code <= 90;
+    const isLower = code >= 97 && code <= 122;
+    if (isUpper || isLower) {
+      const shift = k.charCodeAt(ki % k.length) - 65;
+      out += shiftChar(ch, shift);
+      ki++;
+    } else out += ch;
+  }
+  return out;
+}
+function vigenereDecrypt(text, key) {
+  const k = cleanVigenereKey(key);
+  if (!k) throw new Error("Vigenère key must contain letters.");
+  let out = "", ki = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    const isUpper = code >= 65 && code <= 90;
+    const isLower = code >= 97 && code <= 122;
+    if (isUpper || isLower) {
+      const shift = k.charCodeAt(ki % k.length) - 65;
+      out += shiftChar(ch, -shift);
+      ki++;
+    } else out += ch;
+  }
+  return out;
+}
+
+// XOR over UTF-8 bytes, base64 output
+function xorCipherToBase64(text, key) {
+  if (!key) throw new Error("XOR key is required.");
+  const tb = stringToUtf8Bytes(text);
+  const kb = stringToUtf8Bytes(key);
+  const out = new Uint8Array(tb.length);
+  for (let i = 0; i < tb.length; i++) out[i] = tb[i] ^ kb[i % kb.length];
+  return bytesToBase64(out);
+}
+function xorCipherFromBase64(b64, key) {
+  if (!key) throw new Error("XOR key is required.");
+  const tb = base64ToBytes(b64);
+  const kb = stringToUtf8Bytes(key);
+  const out = new Uint8Array(tb.length);
+  for (let i = 0; i < tb.length; i++) out[i] = tb[i] ^ kb[i % kb.length];
+  return utf8BytesToString(out);
+}
+
+// --- AES-GCM (secure) via Web Crypto ---
+function hasWebCrypto() { return !!(window.crypto && window.crypto.subtle); }
+
+async function deriveAesKey(password, salt, iterations) {
+  const material = await crypto.subtle.importKey(
+    "raw", stringToUtf8Bytes(password), { name: "PBKDF2" }, false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function aesEncrypt(plaintext, password, iterations) {
+  if (!hasWebCrypto()) throw new Error("This browser does not support the Web Crypto API.");
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveAesKey(password, salt, iterations);
+  const cipherBuf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, stringToUtf8Bytes(plaintext));
+  return {
+    app: "STEGATRIX",
+    version: 1,
+    type: "aes-gcm",
+    kdf: "PBKDF2",
+    hash: "SHA-256",
+    iterations,
+    salt: bytesToBase64(salt),
+    iv: bytesToBase64(iv),
+    ciphertext: bytesToBase64(new Uint8Array(cipherBuf)),
+    createdAt: new Date().toISOString()
+  };
+}
+
+async function aesDecrypt(payload, password) {
+  if (!hasWebCrypto()) throw new Error("This browser does not support the Web Crypto API.");
+  let p = payload;
+  if (typeof payload === "string") {
+    try { p = JSON.parse(payload); } catch (e) { throw new Error("Payload is not valid JSON."); }
+  }
+  if (!p || p.type !== "aes-gcm" || !p.salt || !p.iv || !p.ciphertext) {
+    throw new Error("Not a valid AES-GCM payload.");
+  }
+  const salt = base64ToBytes(p.salt);
+  const iv = base64ToBytes(p.iv);
+  const key = await deriveAesKey(password, salt, p.iterations || 250000);
+  let plainBuf;
+  try {
+    plainBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, base64ToBytes(p.ciphertext));
+  } catch (e) {
+    throw new Error("Wrong password or corrupted payload.");
+  }
+  return utf8BytesToString(new Uint8Array(plainBuf));
+}
+
+// Show payload byte size + a "ready to hide" indicator
+function updatePayloadMeta() {
+  const el = $("payloadMeta");
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { el.textContent = ""; return; }
+  const bytes = stringToUtf8Bytes(payload).length;
+  el.innerHTML = `${bytes.toLocaleString()} bytes · <span class="rdy">ready to hide in Stego Lab ↓</span>`;
+}
+
+const isClassicalMode = (m) => m === "caesar" || m === "atbash" || m === "vigenere" || m === "xor";
+
+// Encrypt using the currently selected cipher mode; returns a string payload.
+async function runEncrypt() {
+  const s = state.settings;
+  const text = $("secret").value;
+  if (!text) { toast("Empty secret message.", "error"); return; }
+  const mode = s.cipherMode;
+  try {
+    let payload;
+    if (mode === "base64") payload = textToBase64(text);
+    else if (mode === "caesar") payload = caesarEncrypt(text, parseInt($("caesarShift").value, 10) || 0);
+    else if (mode === "atbash") payload = atbash(text);
+    else if (mode === "vigenere") payload = vigenereEncrypt(text, $("vigenereKey").value);
+    else if (mode === "xor") payload = xorCipherToBase64(text, $("xorKey").value);
+    else if (mode === "aes") {
+      const pw = $("aesPassword").value;
+      if (!pw) { toast("Missing password for AES-GCM.", "error"); return; }
+      const iter = Math.max(50000, parseInt($("aesIterations").value, 10) || 250000);
+      payload = JSON.stringify(await aesEncrypt(text, pw, iter), null, 2);
+    }
+    state.encryptedPayload = payload;
+    $("payloadOut").textContent = payload;
+    updatePayloadMeta();
+    updateCapacity();
+    toast(mode === "aes" ? "Encrypted with AES-GCM." : "Encoded (puzzle mode).", "success");
+  } catch (e) {
+    toast(e.message || "Encryption failed.", "error");
+  }
+}
+
+// Decrypt the payload currently shown, using selected cipher mode.
+async function runDecrypt() {
+  const s = state.settings;
+  const mode = s.cipherMode;
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { toast("No payload to decrypt.", "error"); return; }
+  try {
+    let plain;
+    if (mode === "base64") plain = base64ToText(payload.trim());
+    else if (mode === "caesar") plain = caesarDecrypt(payload, parseInt($("caesarShift").value, 10) || 0);
+    else if (mode === "atbash") plain = atbash(payload);
+    else if (mode === "vigenere") plain = vigenereDecrypt(payload, $("vigenereKey").value);
+    else if (mode === "xor") plain = xorCipherFromBase64(payload.trim(), $("xorKey").value);
+    else if (mode === "aes") {
+      const pw = $("aesPassword").value;
+      if (!pw) { toast("Missing password for AES-GCM.", "error"); return; }
+      plain = await aesDecrypt(payload, pw);
+    }
+    $("plainOut").textContent = plain;
+    toast("Decrypted.", "success");
+  } catch (e) {
+    toast(e.message || "Decryption failed.", "error");
+  }
+}
+/* -------------------- 6. Stego lab -------------------- */
+
+// ----- (a) Visible ASCII payload block -----
+function buildAsciiBlock(payload) {
+  const b64 = textToBase64(payload); // wrap so JSON/newlines survive cleanly
+  return `${state.asciiText}\n\n${ASCII_BEGIN}\n${b64}\n${ASCII_END}\n`;
+}
+function extractAsciiBlock(text) {
+  const bi = text.indexOf(ASCII_BEGIN);
+  const ei = text.indexOf(ASCII_END);
+  if (bi === -1 || ei === -1 || ei < bi) return null;
+  const body = text.slice(bi + ASCII_BEGIN.length, ei).trim();
+  try { return base64ToText(body); } catch (e) { return body; }
+}
+
+// ----- (b) PNG LSB steganography -----
+// Byte layout embedded into R/G/B LSBs (skip alpha):
+//   magic("STGTRX1") + len(4 bytes BE) + payload(UTF-8 JSON)
+function embedPayloadInImageData(imageData, payloadString) {
+  const payloadBytes = stringToUtf8Bytes(payloadString);
+  const magic = stringToUtf8Bytes(PNG_MAGIC);
+  const lenBytes = uint32ToBytesBE(payloadBytes.length);
+  const full = new Uint8Array(magic.length + 4 + payloadBytes.length);
+  full.set(magic, 0);
+  full.set(lenBytes, magic.length);
+  full.set(payloadBytes, magic.length + 4);
+
+  const bits = bytesToBits(full);
+  const data = imageData.data;
+  // capacity = width*height*3 (skip alpha)
+  const capacityBits = (data.length / 4) * 3;
+  if (bits.length > capacityBits) {
+    throw new Error("Payload too large for image capacity.");
+  }
+  let bit = 0;
+  for (let i = 0; i < data.length && bit < bits.length; i += 4) {
+    for (let ch = 0; ch < 3 && bit < bits.length; ch++) {
+      data[i + ch] = (data[i + ch] & 0xfe) | bits[bit++];
+    }
+  }
+  return imageData;
+}
+
+function extractPayloadFromImageData(imageData) {
+  const data = imageData.data;
+  const totalChannels = (data.length / 4) * 3;
+  // read helper: read N bytes worth of bits starting at channel position
+  function readBits(numBits, startBit) {
+    const bits = new Uint8Array(numBits);
+    let bit = 0, produced = 0;
+    for (let i = 0; i < data.length && produced < startBit + numBits; i += 4) {
+      for (let ch = 0; ch < 3; ch++) {
+        if (produced >= startBit && bit < numBits) bits[bit++] = data[i + ch] & 1;
+        produced++;
+        if (produced >= startBit + numBits) break;
+      }
+    }
+    return bits;
+  }
+  const magicLen = PNG_MAGIC.length; // 7 bytes
+  const headerBits = (magicLen + 4) * 8;
+  if (headerBits > totalChannels) throw new Error("No STEGATRIX payload found in this PNG.");
+  const headerBytes = bitsToBytes(readBits(headerBits, 0));
+  const magic = utf8BytesToString(headerBytes.subarray(0, magicLen));
+  if (magic !== PNG_MAGIC) throw new Error("No STEGATRIX payload found in this PNG.");
+  const len = bytesBEToUint32(headerBytes, magicLen);
+  if (len <= 0 || (headerBits + len * 8) > totalChannels) throw new Error("PNG payload header is corrupted.");
+  const payloadBits = readBits(len * 8, headerBits);
+  const payloadBytes = bitsToBytes(payloadBits);
+  return utf8BytesToString(payloadBytes);
+}
+
+// Produce a PNG blob (from current work canvas image) with payload embedded
+function makeStegoPngBlob(payload, cb) {
+  if (!state.imageEl) { toast("No image selected.", "error"); return; }
+  // Use the source image at natural resolution for maximum capacity
+  const img = state.imageEl;
+  const cvs = document.createElement("canvas");
+  cvs.width = img.naturalWidth || img.width;
+  cvs.height = img.naturalHeight || img.height;
+  const c = cvs.getContext("2d");
+  c.drawImage(img, 0, 0, cvs.width, cvs.height);
+  let imageData;
+  try { imageData = c.getImageData(0, 0, cvs.width, cvs.height); }
+  catch (e) { toast("Cannot read image pixels for embedding.", "error"); return; }
+  try { embedPayloadInImageData(imageData, payload); }
+  catch (e) { toast(e.message, "error"); return; }
+  c.putImageData(imageData, 0, 0);
+  cvs.toBlob((blob) => cb(blob), "image/png");
+}
+
+// Capacity estimator for PNG mode
+function updateCapacity() {
+  const box = $("capacityBox");
+  const warn = $("stegoWarn");
+  if (state.settings.stegoMode !== "png") { box.style.display = "none"; return; }
+  box.style.display = "block";
+  if (!state.imageEl) { box.innerHTML = "<span class='bad'>Load an image to estimate capacity.</span>"; return; }
+  const w = state.imageEl.naturalWidth || state.imageEl.width;
+  const h = state.imageEl.naturalHeight || state.imageEl.height;
+  const capBits = w * h * 3;
+  const capBytes = Math.floor(capBits / 8);
+  const payload = state.encryptedPayload || "";
+  const needBytes = PNG_MAGIC.length + 4 + stringToUtf8Bytes(payload).length;
+  const fits = payload && needBytes <= capBytes;
+  let html = `Capacity: <b>${capBytes.toLocaleString()}</b> bytes (${w}×${h}×3 bits).`;
+  if (payload) {
+    html += fits
+      ? ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="ok">fits ✓</span>`
+      : ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="bad">too large ✗</span>`;
+  } else {
+    html += " <span class='bad'>No payload yet.</span>";
+  }
+  box.innerHTML = html;
+  warn.textContent = "PNG only — JPEG/WebP compression will destroy hidden bits.";
+  warn.className = "warn show";
+}
+
+// ----- (c) Self-contained HTML artifact -----
+function buildHtmlArtifact(payload) {
+  const asciiEsc = escapeHtml(state.asciiText || "(no ASCII generated)");
+  const payloadEsc = escapeHtml(payload);
+  return `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Stegatrix Artifact</title>
+<style>
+body{background:#05000f;color:#00f5ff;font-family:monospace;margin:0;padding:24px}
+h1{color:#ff2bd6;text-shadow:0 0 10px #ff2bd6}
+pre{white-space:pre;font-size:8px;line-height:1;text-shadow:0 0 4px #00f5ff;overflow:auto}
+.note{color:#91a4b7;font-size:12px;margin-top:20px;border-top:1px solid #234;padding-top:12px}
+</style></head>
+<body>
+<h1>STEGATRIX ARTIFACT</h1>
+<pre>${asciiEsc}</pre>
+<script type="application/json" id="${HTML_PAYLOAD_ID}">${payloadEsc}<\/script>
+<div class="note">
+  <p>An encrypted payload is embedded in the script tag with id "${HTML_PAYLOAD_ID}".</p>
+  <p>To recover: open Stegatrix, use the Import / Decode panel, load this HTML file,
+  then decrypt with the correct cipher/password. Payload is base64/JSON.</p>
+</div>
+</body></html>`;
+}
+function extractHtmlPayload(htmlText) {
+  try {
+    const doc = new DOMParser().parseFromString(htmlText, "text/html");
+    const el = doc.getElementById(HTML_PAYLOAD_ID);
+    if (el) return el.textContent.trim();
+    const attrEl = doc.querySelector("[data-stegatrix-payload]");
+    if (attrEl) return attrEl.getAttribute("data-stegatrix-payload");
+  } catch (e) { /* fall through */ }
+  return null;
+}
+
+// ----- (d) Zero-width text stego (experimental) -----
+function encodeZeroWidth(payload) {
+  const bytes = stringToUtf8Bytes(payload);
+  const bits = bytesToBits(bytes);
+  let zw = ZW_MAGIC;
+  for (let i = 0; i < bits.length; i++) zw += bits[i] ? ZW_ONE : ZW_ZERO;
+  return zw;
+}
+function decodeZeroWidth(text) {
+  const mi = text.indexOf(ZW_MAGIC);
+  if (mi === -1) return null;
+  const rest = text.slice(mi + ZW_MAGIC.length);
+  const bits = [];
+  for (const ch of rest) {
+    if (ch === ZW_ZERO) bits.push(0);
+    else if (ch === ZW_ONE) bits.push(1);
+    else break; // stop at first non zero-width char
+  }
+  if (bits.length < 8) return null;
+  const bytes = bitsToBytes(Uint8Array.from(bits));
+  return utf8BytesToString(bytes);
+}
+
+// Dispatch: run the selected hide mode
+function runHide() {
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { toast("Encrypt a message first — no payload to hide.", "error"); return; }
+  const mode = state.settings.stegoMode;
+  const out = $("stegoOut");
+
+  if (mode === "ascii") {
+    const block = buildAsciiBlock(payload);
+    out.textContent = block;
+    toast("Payload appended to ASCII block. Copy or export the TXT.", "success");
+  } else if (mode === "png") {
+    if (!state.imageEl) { toast("No image selected for PNG stego.", "error"); return; }
+    makeStegoPngBlob(payload, (blob) => {
+      downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
+      out.textContent = "PNG exported with hidden payload (LSB). Re-import to extract.";
+      toast("Stego PNG exported.", "success");
+    });
+  } else if (mode === "html") {
+    // Download directly (consistent with PNG mode) so there's no hunting for the Export panel.
+    const html = buildHtmlArtifact(payload);
+    downloadText(html, `stegatrix-artifact-${timestamp()}.html`, "text/html;charset=utf-8");
+    out.textContent = "Self-contained HTML artifact downloaded (stegatrix-artifact-*.html). It contains the ASCII art plus the embedded payload. Re-import it in the panel below to recover.";
+    toast("HTML artifact downloaded.", "success");
+  } else if (mode === "zw") {
+    const zw = encodeZeroWidth(payload);
+    const cover = ($("zwCover").value || "").trim() || "hello there";
+    // Embed the invisible payload right after the first word of the cover text
+    const parts = cover.split(" ");
+    parts[0] = parts[0] + zw;
+    const output = parts.join(" ");
+    out.textContent = output; // looks like plain cover text; invisible chars included
+    state._zwPayload = output;
+    toast("Zero-width text ready — use Copy (invisible chars are included).", "warn");
+  }
+}
+/* -------------------- 7. Import / Decode -------------------- */
+function showExtracted(payload) {
+  state.extractedPayload = payload;
+  $("extractOut").textContent = payload;
+  // Prefill decode mode to AES if it looks like an AES payload
+  try {
+    const p = JSON.parse(payload);
+    if (p && p.type === "aes-gcm") { $("decMode").value = "aes"; }
+  } catch (e) { /* not JSON */ }
+}
+
+// Try every text carrier in turn: HTML script tag, ASCII block, zero-width, then raw.
+function extractFromText(text) {
+  let payload = extractHtmlPayload(text);
+  if (!payload) payload = extractAsciiBlock(text);
+  if (!payload) payload = decodeZeroWidth(text);
+  if (!payload) { const t = text.trim(); if (t) payload = t; }
+  return payload;
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const name = (file.name || "").toLowerCase();
+  const isPng = file.type === "image/png" || name.endsWith(".png");
+  const isHtml = file.type === "text/html" || name.endsWith(".html") || name.endsWith(".htm");
+  const isTxt = file.type === "text/plain" || name.endsWith(".txt");
+
+  if (isPng) {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const cvs = document.createElement("canvas");
+      cvs.width = img.naturalWidth; cvs.height = img.naturalHeight;
+      const c = cvs.getContext("2d");
+      c.drawImage(img, 0, 0);
+      let imageData;
+      try { imageData = c.getImageData(0, 0, cvs.width, cvs.height); }
+      catch (e) { toast("Cannot read PNG pixels.", "error"); return; }
+      try {
+        const payload = extractPayloadFromImageData(imageData);
+        showExtracted(payload);
+        toast("Payload extracted from PNG.", "success");
+      } catch (e) { toast(e.message, "error"); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); toast("Could not load PNG.", "error"); };
+    img.src = url;
+    return;
+  }
+
+  if (isHtml || isTxt) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const payload = extractFromText(String(reader.result || ""));
+      if (!payload) { toast("No STEGATRIX payload found in file.", "error"); return; }
+      showExtracted(payload);
+      toast("Payload extracted.", "success");
+    };
+    reader.onerror = () => toast("Could not read file.", "error");
+    reader.readAsText(file);
+    return;
+  }
+
+  toast("Unsupported file type. Use PNG, TXT, or HTML.", "error");
+}
+
+async function runRecover() {
+  const payload = state.extractedPayload || $("extractOut").textContent;
+  if (!payload) { toast("Nothing extracted yet — import an artifact first.", "error"); return; }
+  let mode = $("decMode").value;
+  // Auto: detect AES JSON, else treat as base64 wrapper
+  if (mode === "auto") {
+    try { const p = JSON.parse(payload); mode = p && p.type === "aes-gcm" ? "aes" : "base64"; }
+    catch (e) { mode = "base64"; }
+  }
+  try {
+    let plain;
+    if (mode === "aes") plain = await aesDecrypt(payload, $("decPassword").value);
+    else if (mode === "base64") plain = base64ToText(payload.trim());
+    else if (mode === "caesar") plain = caesarDecrypt(payload, parseInt($("decCaesar").value, 10) || 0);
+    else if (mode === "atbash") plain = atbash(payload);
+    else if (mode === "vigenere") plain = vigenereDecrypt(payload, $("decKey").value);
+    else if (mode === "xor") plain = xorCipherFromBase64(payload.trim(), $("decKey").value);
+    $("recoverOut").textContent = plain;
+    toast("Message recovered.", "success");
+  } catch (e) {
+    toast(e.message || "Recovery failed.", "error");
+  }
+}
+
+/* -------------------- 8. Export -------------------- */
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function downloadText(text, filename, mime) {
+  downloadBlob(new Blob([text], { type: mime || "text/plain;charset=utf-8" }), filename);
+}
+
+function exportPngWithPayload() {
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
+  makeStegoPngBlob(payload, (blob) => {
+    downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
+    toast("Stego PNG exported.", "success");
+  });
+}
+function exportHtmlArtifact() {
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
+  const html = buildHtmlArtifact(payload); // always rebuild from the current payload + ASCII
+  downloadText(html, `stegatrix-artifact-${timestamp()}.html`, "text/html;charset=utf-8");
+  toast("HTML artifact exported.", "success");
+}
+function exportAsciiTxt() {
+  if (!state.asciiText) { toast("No ASCII yet. Upload an image first.", "error"); return; }
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const content = payload && state.settings.stegoMode === "ascii" ? buildAsciiBlock(payload) : state.asciiText;
+  downloadText(content, `stegatrix-ascii-${timestamp()}.txt`);
+  toast("ASCII TXT exported.", "success");
+}
+function exportPayloadJson() {
+  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
+  downloadText(payload, `stegatrix-payload-${timestamp()}.json`, "application/json");
+  toast("Payload JSON exported.", "success");
+}
+function exportReadme() {
+  const txt = README_TEXT;
+  downloadText(txt, `stegatrix-instructions-${timestamp()}.txt`);
+  toast("Instructions exported.", "success");
+}
+
+const README_TEXT = [
+  "STEGATRIX — Image -> ASCII -> Cipher -> Stego Artifact",
+  "=====================================================",
+  "",
+  "Offline, browser-only. Nothing is uploaded.",
+  "",
+  "WORKFLOW",
+  " 1. Upload an image; tune ASCII width / brightness / contrast / charset / theme.",
+  " 2. Type a secret message; pick a cipher mode:",
+  "      - None/Base64, Caesar, Atbash, Vigenere, XOR = PUZZLE MODE (not secure).",
+  "      - AES-GCM = SECURE MODE (PBKDF2-SHA256, random salt + IV).",
+  "    Click Encrypt.",
+  " 3. Stego Lab: hide the payload as a visible ASCII block, PNG LSB, self-contained",
+  "    HTML, or zero-width text.",
+  " 4. Import / Decode: load a PNG/TXT/HTML artifact, extract the payload, decrypt.",
+  "",
+  "SECURITY NOTES",
+  " - ASCII conversion is lossy and visual only; the image cannot be reversed from it.",
+  " - Classical ciphers are for puzzles/aesthetics, NOT security.",
+  " - AES-GCM is the secure option. Use a strong password.",
+  " - LSB steganography survives only in lossless PNG. JPEG/WebP/resize/screenshots destroy it.",
+  " - Zero-width stego is experimental and often stripped by apps.",
+  "",
+  "Internal markers: PNG magic STGTRX1 | ASCII ---BEGIN/END STEGATRIX PAYLOAD--- |",
+  "HTML script id stegatrix-payload | payload.app STEGATRIX."
+].join("\n");
+
+/* -------------------- Wiring / init -------------------- */
+function syncCipherUi() {
+  const mode = state.settings.cipherMode;
+  document.querySelectorAll(".cipher-opt").forEach((el) => {
+    el.style.display = el.getAttribute("data-for") === mode ? "" : "none";
+  });
+  const warn = $("cipherWarn");
+  if (isClassicalMode(mode)) { warn.textContent = "Puzzle cipher only; not secure."; warn.className = "warn show"; }
+  else if (mode === "base64") { warn.textContent = "Base64 is an encoding, not encryption — not secure."; warn.className = "warn show"; }
+  else { warn.className = "warn"; }
+}
+
+// Show only the decode fields relevant to the chosen decode mode
+function syncDecUi() {
+  const mode = $("decMode").value;
+  document.querySelectorAll(".dec-opt").forEach((el) => {
+    const modes = (el.getAttribute("data-decfor") || "").split(" ");
+    el.style.display = modes.includes(mode) ? "" : "none";
+  });
+}
+
+function bindRange(id, key, labelId, fmt) {
+  const el = $(id);
+  el.addEventListener("input", () => {
+    let v = parseFloat(el.value);
+    state.settings[key] = key === "asciiWidth" ? (v | 0) : v;
+    if (labelId) $(labelId).textContent = fmt ? fmt(v) : v;
+    renderAsciiDebounced();
+  });
+}
+
+function init() {
+  if (!hasWebCrypto()) toast("Web Crypto API unavailable — AES-GCM disabled.", "warn");
+
+  // --- Image dropzone + file input ---
+  const dz = $("dropzone"), fi = $("fileInput");
+  dz.addEventListener("click", () => fi.click());
+  dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fi.click(); } });
+  fi.addEventListener("change", () => { if (fi.files[0]) loadImageFile(fi.files[0]); fi.value = ""; });
+  ["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("drag"); }));
+  dz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadImageFile(f); });
+
+  // --- Ranges ---
+  bindRange("asciiWidth", "asciiWidth", "asciiWidthVal");
+  bindRange("brightness", "brightness", "brightnessVal");
+  bindRange("contrast", "contrast", "contrastVal");
+  bindRange("fontSize", "fontSize", "fontSizeVal");
+  bindRange("lineHeight", "lineHeight", "lineHeightVal", (v) => v.toFixed(2));
+
+  // --- Charset + toggles + theme ---
+  $("charset").addEventListener("change", (e) => {
+    state.settings.charset = e.target.value;
+    $("customCharsetField").style.display = e.target.value === "custom" ? "" : "none";
+    renderAscii();
+  });
+  $("customCharset").addEventListener("input", (e) => { state.settings.customCharset = e.target.value; renderAsciiDebounced(); });
+  $("invert").addEventListener("change", (e) => { state.settings.invert = e.target.checked; renderAscii(); });
+  // Color mode and the "Color ASCII" theme are two views of the same flag; keep them in sync.
+  $("colorMode").addEventListener("change", (e) => {
+    state.settings.colorMode = e.target.checked;
+    if (e.target.checked) { $("theme").value = "color"; state.settings.theme = "color"; }
+    else if (state.settings.theme === "color") { $("theme").value = "mono"; state.settings.theme = "mono"; }
+    renderAscii();
+  });
+  $("theme").addEventListener("change", (e) => {
+    state.settings.theme = e.target.value;
+    const isColor = e.target.value === "color";
+    state.settings.colorMode = isColor; // leaving color mode must clear the sticky flag
+    $("colorMode").checked = isColor;
+    renderAscii();
+  });
+  $("debugMode").addEventListener("change", (e) => { work.classList.toggle("show", e.target.checked); });
+
+  // --- ASCII actions ---
+  $("copyAscii").addEventListener("click", () => {
+    if (!state.asciiText) { toast("No ASCII to copy.", "error"); return; }
+    navigator.clipboard.writeText(state.asciiText).then(() => toast("ASCII copied.", "success"), () => toast("Copy failed.", "error"));
+  });
+  $("downloadAscii").addEventListener("click", () => { if (!state.asciiText) { toast("No ASCII yet.", "error"); return; } downloadText(state.asciiText, `stegatrix-ascii-${timestamp()}.txt`); toast("ASCII downloaded.", "success"); });
+  $("exportAsciiPng").addEventListener("click", exportAsciiPng);
+
+  // --- Cipher ---
+  $("cipherMode").addEventListener("change", (e) => { state.settings.cipherMode = e.target.value; syncCipherUi(); });
+  $("encryptBtn").addEventListener("click", runEncrypt);
+  $("decryptBtn").addEventListener("click", runDecrypt);
+  $("clearCipher").addEventListener("click", () => { $("secret").value = ""; $("payloadOut").textContent = ""; $("plainOut").textContent = ""; state.encryptedPayload = ""; updatePayloadMeta(); updateCapacity(); });
+
+  // --- Stego ---
+  $("stegoMode").addEventListener("change", (e) => {
+    state.settings.stegoMode = e.target.value;
+    const warn = $("stegoWarn");
+    $("zwCoverField").style.display = e.target.value === "zw" ? "" : "none";
+    if (e.target.value === "zw") { warn.textContent = "Experimental: may be stripped by websites, editors, or messengers."; warn.className = "warn show"; }
+    else if (e.target.value === "png") { /* handled by updateCapacity */ }
+    else warn.className = "warn";
+    updateCapacity();
+  });
+  $("hideBtn").addEventListener("click", runHide);
+  $("saveStegoTxt").addEventListener("click", () => {
+    const text = $("stegoOut").textContent;
+    if (!text) { toast("Nothing to save yet — hide a payload first.", "error"); return; }
+    downloadText(text, `stegatrix-stego-${timestamp()}.txt`);
+    toast("Stego output saved as .txt", "success");
+  });
+
+  // --- Import / decode ---
+  const idz = $("importDrop"), ii = $("importInput");
+  idz.addEventListener("click", () => ii.click());
+  idz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ii.click(); } });
+  ii.addEventListener("change", () => { if (ii.files[0]) handleImportFile(ii.files[0]); ii.value = ""; });
+  ["dragover", "dragenter"].forEach((ev) => idz.addEventListener(ev, (e) => { e.preventDefault(); idz.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => idz.addEventListener(ev, (e) => { e.preventDefault(); idz.classList.remove("drag"); }));
+  idz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) handleImportFile(f); });
+  $("recoverBtn").addEventListener("click", runRecover);
+  $("decMode").addEventListener("change", syncDecUi);
+  $("decodePaste").addEventListener("click", () => {
+    const text = $("importText").value;
+    if (!text) { toast("Paste some artifact text first.", "error"); return; }
+    const payload = extractFromText(text);
+    if (!payload) { toast("No STEGATRIX payload found in pasted text.", "error"); return; }
+    showExtracted(payload);
+    toast("Payload extracted from pasted text.", "success");
+  });
+
+  // --- Demo image ---
+  $("demoImage").addEventListener("click", generateDemoImage);
+
+  // --- Copy buttons (copy the textContent of a target output box) ---
+  document.querySelectorAll("[data-copy]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = $(btn.getAttribute("data-copy"));
+      const text = target ? target.textContent : "";
+      if (!text) { toast("Nothing to copy yet.", "error"); return; }
+      navigator.clipboard.writeText(text).then(
+        () => { const o = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => (btn.textContent = o), 1200); },
+        () => toast("Copy failed.", "error")
+      );
+    });
+  });
+
+  // --- Password show/hide toggles ---
+  document.querySelectorAll(".pw-toggle").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const input = $(btn.getAttribute("data-target"));
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      btn.textContent = show ? "hide" : "show";
+    });
+  });
+
+  // --- Export panel ---
+  $("expPng").addEventListener("click", exportPngWithPayload);
+  $("expHtml").addEventListener("click", exportHtmlArtifact);
+  $("expAsciiTxt").addEventListener("click", exportAsciiTxt);
+  $("expPayloadJson").addEventListener("click", exportPayloadJson);
+  $("expReadme").addEventListener("click", exportReadme);
+
+  syncCipherUi();
+  syncDecUi();
+}
+
+document.addEventListener("DOMContentLoaded", init);
+})();
+
+</script>
+</body>
+</html>
