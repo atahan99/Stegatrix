@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs / temp
+*.log
+tmp/
+
+# Stegatrix artifacts generated at runtime (do not commit user output)
+stegatrix-ascii-*.txt
+stegatrix-stego-*.png
+stegatrix-stego-*.txt
+stegatrix-artifact-*.html
+stegatrix-payload-*.json
+stegatrix-instructions-*.txt
