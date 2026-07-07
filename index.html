@@ -5,14 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Stegatrix — Image → ASCII → Cipher → Stego Artifact</title>
 <style>
-/* ===========================================================================
-   Stegatrix theme — cyberpunk neon / synthwave / hacker terminal
-   All styling is embedded. No external dependencies.
-   =========================================================================== */
+/* Stegatrix — cyberpunk neon / synthwave / hacker terminal */
 :root{
   --bg:#05000f;
   --panel:rgba(15,10,35,0.72);
-  --panel-solid:#0b0720;
   --cyan:#00f5ff;
   --magenta:#ff2bd6;
   --green:#39ff14;
@@ -148,7 +144,7 @@ header.app{
   box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
   overflow:hidden;
 }
-.panel > summary,.panel-head{
+.panel > summary{
   cursor:pointer;
   list-style:none;
   padding:14px 18px;
@@ -261,7 +257,6 @@ pre.ascii{
 }
 pre.ascii.theme-amber{color:var(--amber)}
 pre.ascii.theme-green{color:var(--green)}
-pre.ascii.theme-mono{color:var(--cyan)}
 .ascii-empty{color:var(--muted);padding:24px;text-align:center}
 
 /* ---------- Output boxes ---------- */
@@ -320,8 +315,6 @@ canvas#work.show{display:block}
 
 .mini{font-size:11px;color:var(--muted)}
 kbd{background:rgba(0,245,255,0.1);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--cyan)}
-.split{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.grow{flex:1;min-width:120px}
 hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 
 /* ---------- Workflow steps bar ---------- */
@@ -481,7 +474,7 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
           </div>
           <div class="ascii-shell" id="asciiShell">
             <div class="ascii-empty" id="asciiEmpty">Upload an image to forge ASCII art…</div>
-            <pre class="ascii theme-mono" id="asciiOut" aria-live="polite"></pre>
+            <pre class="ascii" id="asciiOut" aria-live="polite"></pre>
           </div>
           <div class="btns">
             <button class="btn" id="copyAscii">Copy ASCII</button>
@@ -703,45 +696,26 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 <div id="toasts" aria-live="assertive"></div>
 
 <script>
-/* ===========================================================================
-   STEGATRIX — single-file app logic
-   Modules (all in this one script, no frameworks):
-     1. Utilities   : base64 / UTF-8 / bits / DOM / timestamp
-     2. State        : single `state` object
-     3. Toast        : neon status / error area
-     4. Image        : load, draw, sample -> ASCII
-     5. Cipher       : classical ciphers + AES-GCM (Web Crypto)
-     6. Stego        : ASCII block / PNG LSB / HTML / zero-width
-     7. Import/Decode: extract payload from PNG/TXT/HTML + decrypt
-     8. Export        : blob downloads with timestamped names
-   Internal format identifiers (used on write + read):
-     PNG magic header : "STGTRX1"
-     ASCII markers     : ---BEGIN/END STEGATRIX PAYLOAD---
-     HTML script id    : stegatrix-payload
-     payload.app       : "STEGATRIX"
-     zero-width prefix  : ZW magic sentinel
-   =========================================================================== */
+/* Stegatrix — single-file app (utils, state, image/ASCII, cipher, stego, import, export) */
 (function () {
 "use strict";
 
-/* -------------------- 1. Utilities -------------------- */
+/* --- Utilities --- */
 const $ = (id) => document.getElementById(id);
 const enc = new TextEncoder();
-const dec = new TextDecoder();
+const utf8Dec = new TextDecoder();
 
-const PNG_MAGIC = "STGTRX1";                       // 7 ASCII bytes
+const PNG_MAGIC = "STGTRX1";
 const ASCII_BEGIN = "---BEGIN STEGATRIX PAYLOAD---";
 const ASCII_END = "---END STEGATRIX PAYLOAD---";
 const HTML_PAYLOAD_ID = "stegatrix-payload";
-const ZW_MAGIC = "\u2063\u2063";                   // invisible separator sentinel
-const ZW_ZERO = "\u200B";                          // bit 0
-const ZW_ONE = "\u200C";                            // bit 1
+const ZW_MAGIC = "\u2063\u2063";
+const ZW_ZERO = "\u200B";
+const ZW_ONE = "\u200C";
 
-// UTF-8 helpers
 const stringToUtf8Bytes = (str) => enc.encode(str);
-const utf8BytesToString = (bytes) => dec.decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+const utf8BytesToString = (bytes) => utf8Dec.decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
 
-// Base64 <-> bytes (binary safe)
 function bytesToBase64(bytes) {
   let bin = "";
   const chunk = 0x8000;
@@ -756,11 +730,9 @@ function base64ToBytes(b64) {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-// Base64 for arbitrary unicode text
 const textToBase64 = (str) => bytesToBase64(stringToUtf8Bytes(str));
 const base64ToText = (b64) => utf8BytesToString(base64ToBytes(b64));
 
-// Bits helpers (MSB-first per byte)
 function bytesToBits(bytes) {
   const bits = new Uint8Array(bytes.length * 8);
   let k = 0;
@@ -781,7 +753,6 @@ function bitsToBytes(bits) {
   return out;
 }
 
-// 4-byte unsigned big-endian
 function uint32ToBytesBE(n) {
   return new Uint8Array([(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff]);
 }
@@ -804,20 +775,54 @@ function debounce(fn, ms) {
   return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
 }
 
-/* -------------------- 2. State -------------------- */
+function getPayload() {
+  return state.encryptedPayload || $("payloadOut").textContent;
+}
+
+function copyText(text, opts) {
+  opts = opts || {};
+  if (!text) { toast(opts.empty || "Nothing to copy yet.", "error"); return Promise.reject(); }
+  return navigator.clipboard.writeText(text).then(
+    () => {
+      if (opts.btn) {
+        const o = opts.btn.textContent;
+        opts.btn.textContent = "Copied!";
+        setTimeout(() => (opts.btn.textContent = o), 1200);
+      } else if (opts.ok) toast(opts.ok, "success");
+    },
+    () => toast("Copy failed.", "error")
+  );
+}
+
+function wireDropzone(zone, input, onFile) {
+  zone.addEventListener("click", () => input.click());
+  zone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } });
+  input.addEventListener("change", () => { if (input.files[0]) onFile(input.files[0]); input.value = ""; });
+  ["dragover", "dragenter"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => zone.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove("drag"); }));
+  zone.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) onFile(f); });
+}
+
+function syncPanelOpts(selector, attr, activeMode, exact) {
+  document.querySelectorAll(selector).forEach((el) => {
+    const val = el.getAttribute(attr) || "";
+    const show = exact ? val === activeMode : val.split(" ").includes(activeMode);
+    el.style.display = show ? "" : "none";
+  });
+}
+
+/* --- State --- */
 const state = {
-  imageFile: null,
-  imageEl: null,           // loaded HTMLImageElement
-  asciiText: "",           // plain ASCII (no color spans)
-  asciiRows: null,         // {chars, colors} for PNG export / color render
-  encryptedPayload: "",    // string produced by Cipher Engine
-  extractedPayload: "",    // string recovered by Import panel
+  imageEl: null,
+  asciiText: "",
+  asciiRows: null,
+  encryptedPayload: "",
+  extractedPayload: "",
   settings: {
     asciiWidth: 120,
     brightness: 0,
     contrast: 0,
     invert: false,
-    colorMode: false,
     charset: "dense",
     customCharset: "@#=-. ",
     fontSize: 7,
@@ -836,7 +841,7 @@ const CHARSETS = {
   minimal: "# ."
 };
 
-/* -------------------- 3. Toast -------------------- */
+/* --- Toast --- */
 function toast(msg, type) {
   const box = $("toasts");
   const el = document.createElement("div");
@@ -849,42 +854,42 @@ function toast(msg, type) {
     setTimeout(() => el.remove(), 300);
   }, type === "error" ? 5200 : 3200);
 }
-/* -------------------- 4. Image + ASCII -------------------- */
+
+/* --- Image + ASCII --- */
 const work = $("work");
 const wctx = work.getContext("2d", { willReadFrequently: true });
 
-// Active charset string (dark -> light)
 function activeCharset() {
   const s = state.settings;
   if (s.charset === "custom") return s.customCharset && s.customCharset.length ? s.customCharset : "@#=-. ";
   return CHARSETS[s.charset] || CHARSETS.dense;
 }
 
-// Lift very dark pixel colors so color-ASCII stays visible on the black terminal.
-// Maps each channel 0->70 and 255->255 (keeps hue, guarantees a legible floor).
 function visColor(r, g, b) {
   const lift = (v) => Math.round(70 + v * (185 / 255));
   return [lift(r), lift(g), lift(b)];
 }
 
-// Load an image File into state and trigger ASCII render
+function showImagePreview(img, msg) {
+  state.imageEl = img;
+  const p = $("previewImg");
+  p.src = img.src;
+  p.style.display = "block";
+  renderAscii();
+  updateCapacity();
+  toast(msg, "success");
+}
+
 function loadImageFile(file) {
   if (!file || !file.type || !file.type.startsWith("image/")) {
     toast("Unsupported file type. Please choose an image.", "error");
     return;
   }
-  state.imageFile = file;
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
     URL.revokeObjectURL(url);
-    state.imageEl = img;
-    const p = $("previewImg");
-    p.src = img.src;
-    p.style.display = "block";
-    renderAscii();
-    updateCapacity();
-    toast("Image loaded — forging ASCII.", "success");
+    showImagePreview(img, "Image loaded — forging ASCII.");
   };
   img.onerror = () => { URL.revokeObjectURL(url); toast("Could not load that image.", "error"); };
   img.src = url;
@@ -919,13 +924,7 @@ function generateDemoImage() {
   c.fillStyle = "#0a0018";
   for (let x = 0; x < w; x += 34) { const bh = 40 + (Math.sin(x) + 1) * 45; c.fillRect(x, hz - bh, 26, bh); }
   const img = new Image();
-  img.onload = () => {
-    state.imageFile = null;
-    state.imageEl = img;
-    const p = $("previewImg"); p.src = img.src; p.style.display = "block";
-    renderAscii(); updateCapacity();
-    toast("Demo image loaded.", "success");
-  };
+  img.onload = () => showImagePreview(img, "Demo image loaded.");
   img.src = cvs.toDataURL("image/png");
 }
 
@@ -962,11 +961,11 @@ function buildAscii() {
   const bright = s.brightness;
 
   const lines = [];
-  const colorLines = s.colorMode ? [] : null;
+  const colorLines = s.theme === "color" ? [] : null;
 
   for (let y = 0; y < h; y++) {
     let line = "";
-    let colorLine = s.colorMode ? [] : null;
+    let colorLine = colorLines ? [] : null;
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) * 4;
       let r = data[i], g = data[i + 1], b = data[i + 2];
@@ -1002,11 +1001,11 @@ function renderAscii() {
   state.asciiRows = built;
 
   const s = state.settings;
-  out.className = "ascii theme-" + (s.theme === "amber" ? "amber" : s.theme === "green" ? "green" : "mono");
+  out.className = "ascii" + (s.theme === "amber" ? " theme-amber" : s.theme === "green" ? " theme-green" : "");
   out.style.fontSize = s.fontSize + "px";
   out.style.lineHeight = s.lineHeight;
 
-  const useColor = s.colorMode || s.theme === "color";
+  const useColor = s.theme === "color";
 
   if (useColor && built.colorLines) {
     // Build one HTML string (assigned once) with a span per char run.
@@ -1060,8 +1059,11 @@ function exportAsciiPng() {
   c.fillRect(0, 0, cvs.width, cvs.height);
   c.font = `${fs}px ${getComputedStyle(document.body).fontFamily}`;
   c.textBaseline = "top";
-  const useColor = s.colorMode || s.theme === "color";
-  const monoColor = s.theme === "amber" ? "#ffbf00" : s.theme === "green" ? "#39ff14" : "#00f5ff";
+  const useColor = s.theme === "color";
+  const root = getComputedStyle(document.documentElement);
+  const monoColor = s.theme === "amber" ? root.getPropertyValue("--amber").trim()
+    : s.theme === "green" ? root.getPropertyValue("--green").trim()
+    : root.getPropertyValue("--cyan").trim();
   for (let y = 0; y < rows; y++) {
     const line = built.lines[y];
     if (useColor && built.colorLines) {
@@ -1077,13 +1079,12 @@ function exportAsciiPng() {
   }
   cvs.toBlob((blob) => downloadBlob(blob, `stegatrix-ascii-${timestamp()}.png`), "image/png");
 }
-/* -------------------- 5. Cipher engine -------------------- */
-// --- Classical ciphers (puzzle / aesthetic only, NOT secure) ---
+/* --- Cipher --- */
 function shiftChar(ch, shift) {
   const code = ch.charCodeAt(0);
   if (code >= 65 && code <= 90) return String.fromCharCode(((code - 65 + shift) % 26 + 26) % 26 + 65);
   if (code >= 97 && code <= 122) return String.fromCharCode(((code - 97 + shift) % 26 + 26) % 26 + 97);
-  return ch; // preserve non-letters
+  return ch;
 }
 function caesarEncrypt(text, shift) {
   const n = ((shift % 26) + 26) % 26;
@@ -1105,43 +1106,23 @@ function atbash(text) {
 }
 
 function cleanVigenereKey(key) {
-  const k = (key || "").replace(/[^A-Za-z]/g, "");
-  return k.toUpperCase();
+  return (key || "").replace(/[^A-Za-z]/g, "").toUpperCase();
 }
-function vigenereEncrypt(text, key) {
+function vigenere(text, key, decrypt) {
   const k = cleanVigenereKey(key);
   if (!k) throw new Error("Vigenère key must contain letters.");
   let out = "", ki = 0;
   for (const ch of text) {
     const code = ch.charCodeAt(0);
-    const isUpper = code >= 65 && code <= 90;
-    const isLower = code >= 97 && code <= 122;
-    if (isUpper || isLower) {
-      const shift = k.charCodeAt(ki % k.length) - 65;
-      out += shiftChar(ch, shift);
-      ki++;
-    } else out += ch;
-  }
-  return out;
-}
-function vigenereDecrypt(text, key) {
-  const k = cleanVigenereKey(key);
-  if (!k) throw new Error("Vigenère key must contain letters.");
-  let out = "", ki = 0;
-  for (const ch of text) {
-    const code = ch.charCodeAt(0);
-    const isUpper = code >= 65 && code <= 90;
-    const isLower = code >= 97 && code <= 122;
-    if (isUpper || isLower) {
-      const shift = k.charCodeAt(ki % k.length) - 65;
-      out += shiftChar(ch, -shift);
-      ki++;
+    const isLetter = (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+    if (isLetter) {
+      const shift = k.charCodeAt(ki++ % k.length) - 65;
+      out += shiftChar(ch, decrypt ? -shift : shift);
     } else out += ch;
   }
   return out;
 }
 
-// XOR over UTF-8 bytes, base64 output
 function xorCipherToBase64(text, key) {
   if (!key) throw new Error("XOR key is required.");
   const tb = stringToUtf8Bytes(text);
@@ -1159,7 +1140,6 @@ function xorCipherFromBase64(b64, key) {
   return utf8BytesToString(out);
 }
 
-// --- AES-GCM (secure) via Web Crypto ---
 function hasWebCrypto() { return !!(window.crypto && window.crypto.subtle); }
 
 async function deriveAesKey(password, salt, iterations) {
@@ -1216,36 +1196,54 @@ async function aesDecrypt(payload, password) {
   return utf8BytesToString(new Uint8Array(plainBuf));
 }
 
-// Show payload byte size + a "ready to hide" indicator
+function cipherFields(source) {
+  if (source === "recover") {
+    return {
+      caesarShift: parseInt($("decCaesar").value, 10) || 0,
+      vigenereKey: $("decKey").value,
+      xorKey: $("decKey").value,
+      aesPassword: $("decPassword").value,
+      aesIterations: 250000
+    };
+  }
+  return {
+    caesarShift: parseInt($("caesarShift").value, 10) || 0,
+    vigenereKey: $("vigenereKey").value,
+    xorKey: $("xorKey").value,
+    aesPassword: $("aesPassword").value,
+    aesIterations: Math.max(50000, parseInt($("aesIterations").value, 10) || 250000)
+  };
+}
+
+async function applyCipher(mode, text, fields, encrypt) {
+  if (mode === "base64") return encrypt ? textToBase64(text) : base64ToText(text.trim());
+  if (mode === "caesar") return encrypt ? caesarEncrypt(text, fields.caesarShift) : caesarDecrypt(text, fields.caesarShift);
+  if (mode === "atbash") return atbash(text);
+  if (mode === "vigenere") return vigenere(text, fields.vigenereKey, !encrypt);
+  if (mode === "xor") return encrypt ? xorCipherToBase64(text, fields.xorKey) : xorCipherFromBase64(text.trim(), fields.xorKey);
+  if (mode === "aes") {
+    if (!fields.aesPassword) throw new Error("Missing password for AES-GCM.");
+    return encrypt
+      ? JSON.stringify(await aesEncrypt(text, fields.aesPassword, fields.aesIterations), null, 2)
+      : await aesDecrypt(text, fields.aesPassword);
+  }
+  throw new Error("Unknown cipher mode.");
+}
+
 function updatePayloadMeta() {
   const el = $("payloadMeta");
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   if (!payload) { el.textContent = ""; return; }
   const bytes = stringToUtf8Bytes(payload).length;
   el.innerHTML = `${bytes.toLocaleString()} bytes · <span class="rdy">ready to hide in Stego Lab ↓</span>`;
 }
 
-const isClassicalMode = (m) => m === "caesar" || m === "atbash" || m === "vigenere" || m === "xor";
-
-// Encrypt using the currently selected cipher mode; returns a string payload.
 async function runEncrypt() {
-  const s = state.settings;
   const text = $("secret").value;
   if (!text) { toast("Empty secret message.", "error"); return; }
-  const mode = s.cipherMode;
+  const mode = state.settings.cipherMode;
   try {
-    let payload;
-    if (mode === "base64") payload = textToBase64(text);
-    else if (mode === "caesar") payload = caesarEncrypt(text, parseInt($("caesarShift").value, 10) || 0);
-    else if (mode === "atbash") payload = atbash(text);
-    else if (mode === "vigenere") payload = vigenereEncrypt(text, $("vigenereKey").value);
-    else if (mode === "xor") payload = xorCipherToBase64(text, $("xorKey").value);
-    else if (mode === "aes") {
-      const pw = $("aesPassword").value;
-      if (!pw) { toast("Missing password for AES-GCM.", "error"); return; }
-      const iter = Math.max(50000, parseInt($("aesIterations").value, 10) || 250000);
-      payload = JSON.stringify(await aesEncrypt(text, pw, iter), null, 2);
-    }
+    const payload = await applyCipher(mode, text, cipherFields("encrypt"), true);
     state.encryptedPayload = payload;
     $("payloadOut").textContent = payload;
     updatePayloadMeta();
@@ -1256,33 +1254,18 @@ async function runEncrypt() {
   }
 }
 
-// Decrypt the payload currently shown, using selected cipher mode.
 async function runDecrypt() {
-  const s = state.settings;
-  const mode = s.cipherMode;
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const mode = state.settings.cipherMode;
+  const payload = getPayload();
   if (!payload) { toast("No payload to decrypt.", "error"); return; }
   try {
-    let plain;
-    if (mode === "base64") plain = base64ToText(payload.trim());
-    else if (mode === "caesar") plain = caesarDecrypt(payload, parseInt($("caesarShift").value, 10) || 0);
-    else if (mode === "atbash") plain = atbash(payload);
-    else if (mode === "vigenere") plain = vigenereDecrypt(payload, $("vigenereKey").value);
-    else if (mode === "xor") plain = xorCipherFromBase64(payload.trim(), $("xorKey").value);
-    else if (mode === "aes") {
-      const pw = $("aesPassword").value;
-      if (!pw) { toast("Missing password for AES-GCM.", "error"); return; }
-      plain = await aesDecrypt(payload, pw);
-    }
-    $("plainOut").textContent = plain;
+    $("plainOut").textContent = await applyCipher(mode, payload, cipherFields("encrypt"), false);
     toast("Decrypted.", "success");
   } catch (e) {
     toast(e.message || "Decryption failed.", "error");
   }
 }
-/* -------------------- 6. Stego lab -------------------- */
-
-// ----- (a) Visible ASCII payload block -----
+/* --- Stego --- */
 function buildAsciiBlock(payload) {
   const b64 = textToBase64(payload); // wrap so JSON/newlines survive cleanly
   return `${state.asciiText}\n\n${ASCII_BEGIN}\n${b64}\n${ASCII_END}\n`;
@@ -1295,9 +1278,7 @@ function extractAsciiBlock(text) {
   try { return base64ToText(body); } catch (e) { return body; }
 }
 
-// ----- (b) PNG LSB steganography -----
-// Byte layout embedded into R/G/B LSBs (skip alpha):
-//   magic("STGTRX1") + len(4 bytes BE) + payload(UTF-8 JSON)
+// PNG LSB: magic + len(BE) + UTF-8 payload in R/G/B LSBs
 function embedPayloadInImageData(imageData, payloadString) {
   const payloadBytes = stringToUtf8Bytes(payloadString);
   const magic = stringToUtf8Bytes(PNG_MAGIC);
@@ -1455,43 +1436,46 @@ function decodeZeroWidth(text) {
   return utf8BytesToString(bytes);
 }
 
-// Dispatch: run the selected hide mode
+function downloadStegoPng(payload, after) {
+  makeStegoPngBlob(payload, (blob) => {
+    downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
+    toast("Stego PNG exported.", "success");
+    if (after) after();
+  });
+}
+
+function downloadHtmlArtifact(payload, okMsg) {
+  downloadText(buildHtmlArtifact(payload), `stegatrix-artifact-${timestamp()}.html`, "text/html;charset=utf-8");
+  toast(okMsg, "success");
+}
+
 function runHide() {
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   if (!payload) { toast("Encrypt a message first — no payload to hide.", "error"); return; }
   const mode = state.settings.stegoMode;
   const out = $("stegoOut");
 
   if (mode === "ascii") {
-    const block = buildAsciiBlock(payload);
-    out.textContent = block;
+    out.textContent = buildAsciiBlock(payload);
     toast("Payload appended to ASCII block. Copy or export the TXT.", "success");
   } else if (mode === "png") {
     if (!state.imageEl) { toast("No image selected for PNG stego.", "error"); return; }
-    makeStegoPngBlob(payload, (blob) => {
-      downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
+    downloadStegoPng(payload, () => {
       out.textContent = "PNG exported with hidden payload (LSB). Re-import to extract.";
-      toast("Stego PNG exported.", "success");
     });
   } else if (mode === "html") {
-    // Download directly (consistent with PNG mode) so there's no hunting for the Export panel.
-    const html = buildHtmlArtifact(payload);
-    downloadText(html, `stegatrix-artifact-${timestamp()}.html`, "text/html;charset=utf-8");
+    downloadHtmlArtifact(payload, "HTML artifact downloaded.");
     out.textContent = "Self-contained HTML artifact downloaded (stegatrix-artifact-*.html). It contains the ASCII art plus the embedded payload. Re-import it in the panel below to recover.";
-    toast("HTML artifact downloaded.", "success");
   } else if (mode === "zw") {
     const zw = encodeZeroWidth(payload);
     const cover = ($("zwCover").value || "").trim() || "hello there";
-    // Embed the invisible payload right after the first word of the cover text
     const parts = cover.split(" ");
     parts[0] = parts[0] + zw;
-    const output = parts.join(" ");
-    out.textContent = output; // looks like plain cover text; invisible chars included
-    state._zwPayload = output;
+    out.textContent = parts.join(" ");
     toast("Zero-width text ready — use Copy (invisible chars are included).", "warn");
   }
 }
-/* -------------------- 7. Import / Decode -------------------- */
+/* --- Import / Decode --- */
 function showExtracted(payload) {
   state.extractedPayload = payload;
   $("extractOut").textContent = payload;
@@ -1561,27 +1545,19 @@ async function runRecover() {
   const payload = state.extractedPayload || $("extractOut").textContent;
   if (!payload) { toast("Nothing extracted yet — import an artifact first.", "error"); return; }
   let mode = $("decMode").value;
-  // Auto: detect AES JSON, else treat as base64 wrapper
   if (mode === "auto") {
     try { const p = JSON.parse(payload); mode = p && p.type === "aes-gcm" ? "aes" : "base64"; }
     catch (e) { mode = "base64"; }
   }
   try {
-    let plain;
-    if (mode === "aes") plain = await aesDecrypt(payload, $("decPassword").value);
-    else if (mode === "base64") plain = base64ToText(payload.trim());
-    else if (mode === "caesar") plain = caesarDecrypt(payload, parseInt($("decCaesar").value, 10) || 0);
-    else if (mode === "atbash") plain = atbash(payload);
-    else if (mode === "vigenere") plain = vigenereDecrypt(payload, $("decKey").value);
-    else if (mode === "xor") plain = xorCipherFromBase64(payload.trim(), $("decKey").value);
-    $("recoverOut").textContent = plain;
+    $("recoverOut").textContent = await applyCipher(mode, payload, cipherFields("recover"), false);
     toast("Message recovered.", "success");
   } catch (e) {
     toast(e.message || "Recovery failed.", "error");
   }
 }
 
-/* -------------------- 8. Export -------------------- */
+/* --- Export --- */
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1594,29 +1570,24 @@ function downloadText(text, filename, mime) {
 }
 
 function exportPngWithPayload() {
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
-  makeStegoPngBlob(payload, (blob) => {
-    downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
-    toast("Stego PNG exported.", "success");
-  });
+  downloadStegoPng(payload);
 }
 function exportHtmlArtifact() {
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
-  const html = buildHtmlArtifact(payload); // always rebuild from the current payload + ASCII
-  downloadText(html, `stegatrix-artifact-${timestamp()}.html`, "text/html;charset=utf-8");
-  toast("HTML artifact exported.", "success");
+  downloadHtmlArtifact(payload, "HTML artifact exported.");
 }
 function exportAsciiTxt() {
   if (!state.asciiText) { toast("No ASCII yet. Upload an image first.", "error"); return; }
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   const content = payload && state.settings.stegoMode === "ascii" ? buildAsciiBlock(payload) : state.asciiText;
   downloadText(content, `stegatrix-ascii-${timestamp()}.txt`);
   toast("ASCII TXT exported.", "success");
 }
 function exportPayloadJson() {
-  const payload = state.encryptedPayload || $("payloadOut").textContent;
+  const payload = getPayload();
   if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
   downloadText(payload, `stegatrix-payload-${timestamp()}.json`, "application/json");
   toast("Payload JSON exported.", "success");
@@ -1654,25 +1625,22 @@ const README_TEXT = [
   "HTML script id stegatrix-payload | payload.app STEGATRIX."
 ].join("\n");
 
-/* -------------------- Wiring / init -------------------- */
+/* --- Wiring --- */
 function syncCipherUi() {
   const mode = state.settings.cipherMode;
-  document.querySelectorAll(".cipher-opt").forEach((el) => {
-    el.style.display = el.getAttribute("data-for") === mode ? "" : "none";
-  });
+  syncPanelOpts(".cipher-opt", "data-for", mode, true);
   const warn = $("cipherWarn");
-  if (isClassicalMode(mode)) { warn.textContent = "Puzzle cipher only; not secure."; warn.className = "warn show"; }
-  else if (mode === "base64") { warn.textContent = "Base64 is an encoding, not encryption — not secure."; warn.className = "warn show"; }
-  else { warn.className = "warn"; }
+  if (mode === "caesar" || mode === "atbash" || mode === "vigenere" || mode === "xor") {
+    warn.textContent = "Puzzle cipher only; not secure.";
+    warn.className = "warn show";
+  } else if (mode === "base64") {
+    warn.textContent = "Base64 is an encoding, not encryption — not secure.";
+    warn.className = "warn show";
+  } else { warn.className = "warn"; }
 }
 
-// Show only the decode fields relevant to the chosen decode mode
 function syncDecUi() {
-  const mode = $("decMode").value;
-  document.querySelectorAll(".dec-opt").forEach((el) => {
-    const modes = (el.getAttribute("data-decfor") || "").split(" ");
-    el.style.display = modes.includes(mode) ? "" : "none";
-  });
+  syncPanelOpts(".dec-opt", "data-decfor", $("decMode").value, false);
 }
 
 function bindRange(id, key, labelId, fmt) {
@@ -1688,14 +1656,8 @@ function bindRange(id, key, labelId, fmt) {
 function init() {
   if (!hasWebCrypto()) toast("Web Crypto API unavailable — AES-GCM disabled.", "warn");
 
-  // --- Image dropzone + file input ---
-  const dz = $("dropzone"), fi = $("fileInput");
-  dz.addEventListener("click", () => fi.click());
-  dz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fi.click(); } });
-  fi.addEventListener("change", () => { if (fi.files[0]) loadImageFile(fi.files[0]); fi.value = ""; });
-  ["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("drag"); }));
-  ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("drag"); }));
-  dz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadImageFile(f); });
+  wireDropzone($("dropzone"), $("fileInput"), loadImageFile);
+  wireDropzone($("importDrop"), $("importInput"), handleImportFile);
 
   // --- Ranges ---
   bindRange("asciiWidth", "asciiWidth", "asciiWidthVal");
@@ -1712,18 +1674,14 @@ function init() {
   });
   $("customCharset").addEventListener("input", (e) => { state.settings.customCharset = e.target.value; renderAsciiDebounced(); });
   $("invert").addEventListener("change", (e) => { state.settings.invert = e.target.checked; renderAscii(); });
-  // Color mode and the "Color ASCII" theme are two views of the same flag; keep them in sync.
   $("colorMode").addEventListener("change", (e) => {
-    state.settings.colorMode = e.target.checked;
-    if (e.target.checked) { $("theme").value = "color"; state.settings.theme = "color"; }
-    else if (state.settings.theme === "color") { $("theme").value = "mono"; state.settings.theme = "mono"; }
+    if (e.target.checked) { state.settings.theme = "color"; $("theme").value = "color"; }
+    else if (state.settings.theme === "color") { state.settings.theme = "mono"; $("theme").value = "mono"; }
     renderAscii();
   });
   $("theme").addEventListener("change", (e) => {
     state.settings.theme = e.target.value;
-    const isColor = e.target.value === "color";
-    state.settings.colorMode = isColor; // leaving color mode must clear the sticky flag
-    $("colorMode").checked = isColor;
+    $("colorMode").checked = e.target.value === "color";
     renderAscii();
   });
   $("debugMode").addEventListener("change", (e) => { work.classList.toggle("show", e.target.checked); });
@@ -1731,7 +1689,7 @@ function init() {
   // --- ASCII actions ---
   $("copyAscii").addEventListener("click", () => {
     if (!state.asciiText) { toast("No ASCII to copy.", "error"); return; }
-    navigator.clipboard.writeText(state.asciiText).then(() => toast("ASCII copied.", "success"), () => toast("Copy failed.", "error"));
+    copyText(state.asciiText, { ok: "ASCII copied." });
   });
   $("downloadAscii").addEventListener("click", () => { if (!state.asciiText) { toast("No ASCII yet.", "error"); return; } downloadText(state.asciiText, `stegatrix-ascii-${timestamp()}.txt`); toast("ASCII downloaded.", "success"); });
   $("exportAsciiPng").addEventListener("click", exportAsciiPng);
@@ -1761,13 +1719,6 @@ function init() {
   });
 
   // --- Import / decode ---
-  const idz = $("importDrop"), ii = $("importInput");
-  idz.addEventListener("click", () => ii.click());
-  idz.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ii.click(); } });
-  ii.addEventListener("change", () => { if (ii.files[0]) handleImportFile(ii.files[0]); ii.value = ""; });
-  ["dragover", "dragenter"].forEach((ev) => idz.addEventListener(ev, (e) => { e.preventDefault(); idz.classList.add("drag"); }));
-  ["dragleave", "drop"].forEach((ev) => idz.addEventListener(ev, (e) => { e.preventDefault(); idz.classList.remove("drag"); }));
-  idz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) handleImportFile(f); });
   $("recoverBtn").addEventListener("click", runRecover);
   $("decMode").addEventListener("change", syncDecUi);
   $("decodePaste").addEventListener("click", () => {
@@ -1786,12 +1737,7 @@ function init() {
   document.querySelectorAll("[data-copy]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const target = $(btn.getAttribute("data-copy"));
-      const text = target ? target.textContent : "";
-      if (!text) { toast("Nothing to copy yet.", "error"); return; }
-      navigator.clipboard.writeText(text).then(
-        () => { const o = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => (btn.textContent = o), 1200); },
-        () => toast("Copy failed.", "error")
-      );
+      copyText(target ? target.textContent : "", { btn });
     });
   });
 
