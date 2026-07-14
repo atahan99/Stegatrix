@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Stegatrix — Image → ASCII → Cipher → Stego Artifact</title>
+<title>Stegatrix — Image → Encrypt → Hide</title>
 <style>
 /* Stegatrix — cyberpunk neon / synthwave / hacker terminal */
 :root{
@@ -68,7 +68,7 @@ body::after{
 
 a{color:var(--cyan)}
 
-.wrap{max-width:1400px;margin:0 auto;padding:24px 20px 80px}
+.wrap{max-width:820px;margin:0 auto;padding:24px 20px 80px}
 
 /* ---------- Header ---------- */
 header.app{
@@ -85,6 +85,7 @@ header.app{
   display:inline-block;
   color:var(--text);
   animation:neonPulse 5s ease-in-out infinite;
+  cursor:pointer;
 }
 /* Soft chromatic-aberration layers that drift gently — no harsh clipping */
 .title::before,.title::after{
@@ -122,17 +123,41 @@ header.app{
   box-shadow:0 0 10px rgba(0,245,255,0.15) inset;
 }
 
-/* ---------- Layout grid ---------- */
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
-  margin-top:18px;
+/* ---------- Stage / screens ---------- */
+.stage{margin-top:18px;min-width:0}
+.screen{display:none}
+.screen.active{display:block}
+.screen[hidden]{display:none !important}
+.path-cards{
+  display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;
 }
-.col{display:flex;flex-direction:column;gap:18px;min-width:0}
-@media (max-width:960px){
-  .grid{grid-template-columns:1fr}
+@media (max-width:640px){.path-cards{grid-template-columns:1fr}}
+.path-card{
+  text-align:left;cursor:pointer;width:100%;
+  font-family:var(--mono);color:var(--text);
+  background:var(--panel);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 20px;
+  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
+  box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
+  transition:all .15s ease;
 }
+.path-card:hover{
+  border-color:var(--cyan);transform:translateY(-2px);
+  box-shadow:0 0 24px rgba(0,245,255,0.25);
+}
+.path-card .pc-title{
+  font-size:18px;font-weight:800;letter-spacing:2px;color:var(--cyan);
+  text-transform:uppercase;margin:0 0 8px;
+}
+.path-card .pc-desc{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
+.flow-nav{
+  display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;
+  margin-top:16px;
+}
+.flow-nav[hidden]{display:none !important}
+.flow-nav .nav-right{display:flex;gap:10px;margin-left:auto}
+.footer-about{margin-top:28px}
 
 /* ---------- Panels ---------- */
 .panel{
@@ -144,15 +169,19 @@ header.app{
   box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
   overflow:hidden;
 }
-.panel > summary{
-  cursor:pointer;
-  list-style:none;
+.panel > .panel-head,.panel > summary{
   padding:14px 18px;
   display:flex;align-items:center;gap:10px;
   font-weight:700;letter-spacing:1px;
   border-bottom:1px solid rgba(0,245,255,0.14);
   background:linear-gradient(90deg,rgba(0,245,255,0.08),rgba(255,43,214,0.06));
   user-select:none;
+}
+.panel > .panel-head::before{
+  content:"▸";color:var(--cyan);font-size:13px;transform:rotate(90deg);
+}
+.panel > summary{
+  cursor:pointer;list-style:none;
 }
 .panel > summary::-webkit-details-marker{display:none}
 .panel > summary::before{
@@ -319,22 +348,32 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 
 /* ---------- Workflow steps bar ---------- */
 .workflow{
-  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;
+  display:none;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center;
   margin:14px auto 0;max-width:900px;
 }
+.workflow.show{display:flex}
 .step{
-  display:flex;align-items:center;gap:8px;
+  display:inline-flex;align-items:center;gap:8px;
   font-size:12px;color:var(--muted);
   border:1px solid var(--border);border-radius:10px;
   padding:6px 12px;background:rgba(0,245,255,0.04);
+  font-family:var(--mono);cursor:default;
 }
+button.step{appearance:none;-webkit-appearance:none}
 .step b{
   display:inline-flex;align-items:center;justify-content:center;
   width:20px;height:20px;border-radius:50%;
-  background:var(--magenta);color:#05000f;font-size:11px;font-weight:800;
-  box-shadow:0 0 10px rgba(255,43,214,0.5);
+  background:rgba(145,164,183,0.45);color:#05000f;font-size:11px;font-weight:800;
 }
-.step .arrow{color:var(--cyan);margin:0 2px}
+.step.active{
+  color:var(--text);border-color:var(--cyan);
+  background:rgba(0,245,255,0.1);box-shadow:0 0 14px rgba(0,245,255,0.2);
+}
+.step.active b{background:var(--magenta);box-shadow:0 0 10px rgba(255,43,214,0.5)}
+.step.done{color:var(--cyan);cursor:pointer}
+.step.done b{background:var(--green);box-shadow:0 0 10px rgba(57,255,20,0.45)}
+.step.done:hover{background:rgba(57,255,20,0.1);border-color:var(--green)}
+.workflow .arrow{color:var(--cyan);margin:0 2px;font-size:12px}
 
 /* ---------- Output header + copy button ---------- */
 .output-head{display:flex;align-items:center;gap:8px;margin:14px 0 4px}
@@ -359,6 +398,23 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 }
 .payload-meta{font-size:11px;color:var(--muted);margin-top:4px}
 .payload-meta .rdy{color:var(--green)}
+.tune-details{
+  margin-top:14px;border:1px solid var(--border);border-radius:10px;
+  background:rgba(0,245,255,0.04);padding:0;
+}
+.tune-details > summary{
+  cursor:pointer;list-style:none;padding:10px 14px;font-size:12px;letter-spacing:1px;
+  color:var(--cyan);text-transform:uppercase;user-select:none;
+}
+.tune-details > summary::-webkit-details-marker{display:none}
+.tune-details > summary::before{content:"▸ ";color:var(--magenta)}
+.tune-details[open] > summary::before{content:"▾ "}
+.tune-body{padding:0 14px 14px}
+.finish-strip{
+  margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,245,255,0.14);
+}
+.finish-strip[hidden]{display:none !important}
+.ascii-shell{margin-top:14px}
 </style>
 </head>
 <body>
@@ -366,35 +422,40 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 
   <!-- ===================== A. HEADER ===================== -->
   <header class="app">
-    <h1 class="title" data-text="STEGATRIX">STEGATRIX</h1>
-    <div class="subtitle">Image → ASCII → Cipher → Stego Artifact</div>
+    <h1 class="title" id="homeTitle" data-text="STEGATRIX" tabindex="0" role="link" aria-label="STEGATRIX — back to home">STEGATRIX</h1>
+    <div class="subtitle">Image → Encrypt → Hide</div>
     <div class="badges">
       <span class="badge">offline</span>
       <span class="badge">browser-only</span>
       <span class="badge">no upload</span>
     </div>
-    <div class="workflow" aria-label="Workflow steps">
-      <span class="step"><b>1</b> Upload image</span>
-      <span class="arrow">→</span>
-      <span class="step"><b>2</b> Encrypt message</span>
-      <span class="arrow">→</span>
-      <span class="step"><b>3</b> Hide payload</span>
-      <span class="arrow">→</span>
-      <span class="step"><b>4</b> Export / share</span>
-    </div>
+    <div class="workflow" id="workflow" aria-label="Workflow steps"></div>
     <div class="check" style="justify-content:center">
       <input type="checkbox" id="debugMode" />
       <label for="debugMode">Debugging mode (show work canvas)</label>
     </div>
   </header>
 
-  <div class="grid">
-    <!-- ===================== LEFT COLUMN ===================== -->
-    <div class="col">
+  <div class="stage">
 
-      <!-- B. IMAGE INPUT -->
-      <details class="panel" open>
-        <summary><span class="section-letter">B.</span> Image Input <span class="tag">source</span></summary>
+    <!-- HOME: path picker -->
+    <div class="screen active" data-screen="home">
+      <div class="path-cards">
+        <button type="button" class="path-card" data-path="create" aria-label="Create: encode and hide a message">
+          <div class="pc-title">Create</div>
+          <p class="pc-desc">Upload an image, encrypt a message, hide it in an artifact, and download the result.</p>
+        </button>
+        <button type="button" class="path-card" data-path="recover" aria-label="Recover: import and decrypt an artifact">
+          <div class="pc-title">Recover</div>
+          <p class="pc-desc">Import a PNG, TXT, or HTML artifact, extract the payload, and recover the message.</p>
+        </button>
+      </div>
+    </div>
+
+    <!-- CREATE 1: Image & ASCII -->
+    <div class="screen" data-screen="image" hidden>
+      <section class="panel">
+        <div class="panel-head"><span class="section-letter">1.</span> Image &amp; ASCII <span class="tag">source</span></div>
         <div class="body">
           <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload image: click or drag and drop">
             <div>Drag &amp; drop an image here, or <strong>click to browse</strong></div>
@@ -406,72 +467,6 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
           </div>
           <img id="previewImg" class="preview-img" alt="Original image preview" style="display:none" />
 
-          <div class="row">
-            <div class="field">
-              <label for="asciiWidth">ASCII width <span class="rangeval" id="asciiWidthVal">120</span></label>
-              <input type="range" id="asciiWidth" min="40" max="240" step="1" value="120" />
-            </div>
-            <div class="field">
-              <label for="brightness">Brightness <span class="rangeval" id="brightnessVal">0</span></label>
-              <input type="range" id="brightness" min="-150" max="150" step="1" value="0" />
-            </div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label for="contrast">Contrast <span class="rangeval" id="contrastVal">0</span></label>
-              <input type="range" id="contrast" min="-100" max="100" step="1" value="0" />
-            </div>
-            <div class="field">
-              <label for="fontSize">Font size <span class="rangeval" id="fontSizeVal">7</span>px</label>
-              <input type="range" id="fontSize" min="4" max="16" step="1" value="7" />
-            </div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label for="lineHeight">Line height <span class="rangeval" id="lineHeightVal">1.0</span></label>
-              <input type="range" id="lineHeight" min="0.7" max="1.6" step="0.05" value="1.0" />
-            </div>
-            <div class="field">
-              <label for="charset">Character set</label>
-              <select id="charset">
-                <option value="dense">Dense — @%#*+=-:. </option>
-                <option value="blocks">Blocks — █▓▒░ </option>
-                <option value="binary">Binary — 01</option>
-                <option value="cyber">Cyber — @#&amp;$%*+=-:. </option>
-                <option value="minimal">Minimal — # .</option>
-                <option value="custom">Custom…</option>
-              </select>
-            </div>
-          </div>
-          <div class="field" id="customCharsetField" style="display:none">
-            <label for="customCharset">Custom characters (dark → light)</label>
-            <input type="text" id="customCharset" value="@#=-. " placeholder="e.g. @#=-. " />
-          </div>
-          <div class="check"><input type="checkbox" id="invert" /><label for="invert">Invert brightness</label></div>
-          <div class="check"><input type="checkbox" id="colorMode" /><label for="colorMode">Color ASCII (use original pixel color)</label></div>
-
-          <div class="debug-canvas-wrap">
-            <canvas id="work" aria-hidden="true"></canvas>
-          </div>
-        </div>
-      </details>
-
-      <!-- C. ASCII FORGE -->
-      <details class="panel" open>
-        <summary><span class="section-letter">C.</span> ASCII Forge <span class="tag">preview</span></summary>
-        <div class="body">
-          <div class="row">
-            <div class="field">
-              <label for="theme">Render theme</label>
-              <select id="theme">
-                <option value="mono">Monochrome neon</option>
-                <option value="color">Color ASCII (pixel color)</option>
-                <option value="amber">Amber terminal</option>
-                <option value="green">Matrix green</option>
-                <option value="split">Magenta / cyan split glow</option>
-              </select>
-            </div>
-          </div>
           <div class="ascii-shell" id="asciiShell">
             <div class="ascii-empty" id="asciiEmpty">Upload an image to forge ASCII art…</div>
             <pre class="ascii" id="asciiOut" aria-live="polite"></pre>
@@ -481,32 +476,77 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
             <button class="btn magenta" id="downloadAscii">Download .txt</button>
             <button class="btn green" id="exportAsciiPng">Export as PNG</button>
           </div>
-        </div>
-      </details>
 
-      <!-- G. EXPORT -->
-      <details class="panel" open>
-        <summary><span class="section-letter">G.</span> Export <span class="tag">artifacts</span></summary>
-        <div class="body">
-          <div class="btns">
-            <button class="btn green" id="expPng">Export PNG with hidden payload</button>
-            <button class="btn magenta" id="expHtml">Export self-contained HTML artifact</button>
-            <button class="btn" id="expAsciiTxt">Export ASCII TXT</button>
-            <button class="btn" id="expPayloadJson">Export encrypted payload JSON</button>
-            <button class="btn ghost" id="expReadme">Export README / instructions TXT</button>
+          <details class="tune-details">
+            <summary>Tune ASCII</summary>
+            <div class="tune-body">
+              <div class="row">
+                <div class="field">
+                  <label for="asciiWidth">ASCII width <span class="rangeval" id="asciiWidthVal">120</span></label>
+                  <input type="range" id="asciiWidth" min="40" max="240" step="1" value="120" />
+                </div>
+                <div class="field">
+                  <label for="brightness">Brightness <span class="rangeval" id="brightnessVal">0</span></label>
+                  <input type="range" id="brightness" min="-150" max="150" step="1" value="0" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="contrast">Contrast <span class="rangeval" id="contrastVal">0</span></label>
+                  <input type="range" id="contrast" min="-100" max="100" step="1" value="0" />
+                </div>
+                <div class="field">
+                  <label for="fontSize">Font size <span class="rangeval" id="fontSizeVal">7</span>px</label>
+                  <input type="range" id="fontSize" min="4" max="16" step="1" value="7" />
+                </div>
+              </div>
+              <div class="row">
+                <div class="field">
+                  <label for="lineHeight">Line height <span class="rangeval" id="lineHeightVal">1.0</span></label>
+                  <input type="range" id="lineHeight" min="0.7" max="1.6" step="0.05" value="1.0" />
+                </div>
+                <div class="field">
+                  <label for="charset">Character set</label>
+                  <select id="charset">
+                    <option value="dense">Dense — @%#*+=-:. </option>
+                    <option value="blocks">Blocks — █▓▒░ </option>
+                    <option value="binary">Binary — 01</option>
+                    <option value="cyber">Cyber — @#&amp;$%*+=-:. </option>
+                    <option value="minimal">Minimal — # .</option>
+                    <option value="custom">Custom…</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" id="customCharsetField" style="display:none">
+                <label for="customCharset">Custom characters (dark → light)</label>
+                <input type="text" id="customCharset" value="@#=-. " placeholder="e.g. @#=-. " />
+              </div>
+              <div class="field">
+                <label for="theme">Render theme</label>
+                <select id="theme">
+                  <option value="mono">Monochrome neon</option>
+                  <option value="color">Color ASCII (pixel color)</option>
+                  <option value="amber">Amber terminal</option>
+                  <option value="green">Matrix green</option>
+                  <option value="split">Magenta / cyan split glow</option>
+                </select>
+              </div>
+              <div class="check"><input type="checkbox" id="invert" /><label for="invert">Invert brightness</label></div>
+              <div class="check"><input type="checkbox" id="colorMode" /><label for="colorMode">Color ASCII (use original pixel color)</label></div>
+            </div>
+          </details>
+
+          <div class="debug-canvas-wrap">
+            <canvas id="work" aria-hidden="true"></canvas>
           </div>
-          <div class="hint">Filenames include a timestamp, e.g. <kbd>stegatrix-stego-YYYYMMDD-HHMM.png</kbd>.</div>
         </div>
-      </details>
-
+      </section>
     </div>
 
-    <!-- ===================== RIGHT COLUMN ===================== -->
-    <div class="col">
-
-      <!-- D. CIPHER ENGINE -->
-      <details class="panel" open>
-        <summary><span class="section-letter">D.</span> Cipher Engine <span class="tag">encrypt</span></summary>
+    <!-- CREATE 2: Encrypt -->
+    <div class="screen" data-screen="cipher" hidden>
+      <section class="panel">
+        <div class="panel-head"><span class="section-letter">2.</span> Encrypt <span class="tag">cipher</span></div>
         <div class="body">
           <label for="secret">Secret message</label>
           <textarea id="secret" placeholder="Type the message to encrypt / encode…"></textarea>
@@ -557,7 +597,7 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
 
           <div class="btns">
             <button class="btn green" id="encryptBtn">Encrypt</button>
-            <button class="btn" id="decryptBtn">Decrypt</button>
+            <button class="btn ghost" id="decryptBtn">Decrypt</button>
             <button class="btn ghost" id="clearCipher">Clear</button>
           </div>
 
@@ -573,18 +613,20 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
           </div>
           <div class="output" id="plainOut" aria-live="polite"></div>
         </div>
-      </details>
+      </section>
+    </div>
 
-      <!-- E. STEGO LAB -->
-      <details class="panel" open>
-        <summary><span class="section-letter">E.</span> Stego Lab <span class="tag">hide</span></summary>
+    <!-- CREATE 3: Hide & finish -->
+    <div class="screen" data-screen="stego" hidden>
+      <section class="panel">
+        <div class="panel-head"><span class="section-letter">3.</span> Hide &amp; finish <span class="tag">artifact</span></div>
         <div class="body">
           <label for="stegoMode">Hide mode</label>
           <select id="stegoMode">
-            <option value="ascii">Visible ASCII payload block</option>
-            <option value="png">PNG LSB steganography</option>
-            <option value="html">Self-contained HTML payload</option>
-            <option value="zw">Zero-width text stego (experimental)</option>
+            <option value="ascii">ASCII text block (visible payload)</option>
+            <option value="png">PNG (hidden in image)</option>
+            <option value="html">HTML page (self-contained)</option>
+            <option value="zw">Zero-width text (experimental)</option>
           </select>
 
           <div class="capacity" id="capacityBox" style="display:none"></div>
@@ -598,7 +640,7 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
           <div class="btns">
             <button class="btn green" id="hideBtn">Hide payload</button>
           </div>
-          <div class="hint">Uses the encrypted payload from the Cipher Engine above. Encrypt a message first.</div>
+          <div class="hint">Uses the encrypted payload from the previous step. Encrypt a message first.</div>
 
           <div class="output-head">
             <label>Stego output</label>
@@ -606,12 +648,31 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
             <button class="copybtn" id="saveStegoTxt">Save .txt</button>
           </div>
           <div class="output" id="stegoOut" aria-live="polite"></div>
-        </div>
-      </details>
 
-      <!-- F. IMPORT / DECODE -->
-      <details class="panel" open>
-        <summary><span class="section-letter">F.</span> Import / Decode <span class="tag">recover</span></summary>
+          <div id="finishStrip" class="finish-strip" hidden>
+            <div class="hint" id="finishHint">Artifact ready.</div>
+            <div class="btns">
+              <button type="button" class="btn magenta" id="gotoDecode">Recover an artifact →</button>
+            </div>
+            <details class="tune-details">
+              <summary>Advanced exports</summary>
+              <div class="tune-body">
+                <div class="btns">
+                  <button class="btn" id="expPayloadJson">Export encrypted payload JSON</button>
+                  <button class="btn ghost" id="expReadme">Export README / instructions TXT</button>
+                </div>
+                <div class="hint">Filenames include a timestamp, e.g. <kbd>stegatrix-payload-YYYYMMDD-HHMM.json</kbd>.</div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- RECOVER: Import -->
+    <div class="screen" data-screen="import" hidden>
+      <section class="panel">
+        <div class="panel-head"><span class="section-letter">1.</span> Import <span class="tag">extract</span></div>
         <div class="body">
           <div class="dropzone" id="importDrop" tabindex="0" role="button" aria-label="Import artifact: click or drag and drop">
             <div>Drop a <strong>PNG / TXT / HTML</strong> artifact, or <strong>click to browse</strong></div>
@@ -629,8 +690,15 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
             <button class="copybtn" data-copy="extractOut">Copy</button>
           </div>
           <div class="output" id="extractOut" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
 
-          <hr class="sep" />
+    <!-- RECOVER: Decrypt -->
+    <div class="screen" data-screen="recover" hidden>
+      <section class="panel">
+        <div class="panel-head"><span class="section-letter">2.</span> Recover Message <span class="tag">decrypt</span></div>
+        <div class="body">
           <div class="mini">Decrypt the extracted payload using the settings below (must match how it was encrypted).</div>
           <div class="row">
             <div class="field">
@@ -664,13 +732,21 @@ hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
           </div>
           <div class="output" id="recoverOut" aria-live="polite"></div>
         </div>
-      </details>
-
+      </section>
     </div>
+
+    <div class="flow-nav" id="flowNav" hidden>
+      <button type="button" class="btn ghost" id="btnBack">Back</button>
+      <div class="nav-right">
+        <button type="button" class="btn green" id="btnNext">Next</button>
+        <button type="button" class="btn magenta" id="btnRestart" hidden>Start over</button>
+      </div>
+    </div>
+
   </div>
 
-  <!-- About / Limits -->
-  <details class="panel" style="margin-top:18px">
+  <!-- About / Limits (footer) -->
+  <details class="panel footer-about">
     <summary>About / Limits <span class="tag">honesty</span></summary>
     <div class="body">
       <ul class="limits">
@@ -818,6 +894,7 @@ const state = {
   asciiRows: null,
   encryptedPayload: "",
   extractedPayload: "",
+  stegoReady: false,
   settings: {
     asciiWidth: 120,
     brightness: 0,
@@ -832,6 +909,157 @@ const state = {
     stegoMode: "ascii"
   }
 };
+
+/* --- Wizard (Create / Recover stepped flow) --- */
+const PATHS = {
+  create: [
+    { id: "image", label: "Image" },
+    { id: "cipher", label: "Encrypt" },
+    { id: "stego", label: "Hide" }
+  ],
+  recover: [
+    { id: "import", label: "Import" },
+    { id: "recover", label: "Recover" }
+  ]
+};
+const UNLOCK = {
+  image: () => !!state.imageEl && !!state.asciiText,
+  cipher: () => !!state.encryptedPayload,
+  import: () => !!state.extractedPayload
+};
+const wizard = { path: null, screen: "home" };
+
+function pathSteps() {
+  return wizard.path ? PATHS[wizard.path] : [];
+}
+function stepIndex(id) {
+  return pathSteps().findIndex((s) => s.id === id);
+}
+function canUnlock(id) {
+  return UNLOCK[id] ? UNLOCK[id]() : true;
+}
+function markStegoReady() {
+  state.stegoReady = true;
+  refreshWizard();
+}
+
+function goTo(screenId) {
+  wizard.screen = screenId;
+  if (screenId === "home") wizard.path = null;
+  document.querySelectorAll(".screen").forEach((el) => {
+    const on = el.getAttribute("data-screen") === screenId;
+    el.classList.toggle("active", on);
+    el.hidden = !on;
+  });
+  refreshWizard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function refreshWizard() {
+  const steps = pathSteps();
+  const idx = stepIndex(wizard.screen);
+  const bar = $("workflow");
+  const nav = $("flowNav");
+  const btnNext = $("btnNext");
+  const btnBack = $("btnBack");
+  const btnRestart = $("btnRestart");
+  const onHome = wizard.screen === "home";
+
+  if (onHome || !steps.length) {
+    bar.classList.remove("show");
+    bar.innerHTML = "";
+    nav.hidden = true;
+    return;
+  }
+
+  bar.classList.add("show");
+  bar.innerHTML = "";
+  steps.forEach((s, i) => {
+    if (i) {
+      const arrow = document.createElement("span");
+      arrow.className = "arrow";
+      arrow.textContent = "→";
+      arrow.setAttribute("aria-hidden", "true");
+      bar.appendChild(arrow);
+    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "step";
+    if (i === idx) btn.classList.add("active");
+    else if (i < idx) btn.classList.add("done");
+    btn.innerHTML = `<b>${i + 1}</b> ${s.label}`;
+    btn.disabled = i > idx;
+    if (i < idx) btn.addEventListener("click", () => goTo(s.id));
+    bar.appendChild(btn);
+  });
+
+  nav.hidden = false;
+  const isLast = idx === steps.length - 1;
+  btnRestart.hidden = !isLast;
+  btnNext.hidden = isLast;
+  btnBack.hidden = false;
+
+  if (!isLast) {
+    const unlocked = canUnlock(wizard.screen);
+    btnNext.disabled = !unlocked;
+    btnNext.title = unlocked ? "" : "Complete this step’s action first";
+  }
+
+  const finish = $("finishStrip");
+  if (finish) {
+    const showFinish = wizard.screen === "stego" && state.stegoReady;
+    finish.hidden = !showFinish;
+    if (showFinish) {
+      const hint = $("finishHint");
+      if (hint) {
+        const mode = state.settings.stegoMode;
+        hint.textContent = mode === "png" || mode === "html"
+          ? "Artifact downloaded. You can recover it anytime, or export extras below."
+          : "Artifact ready below. Copy or save it, then recover anytime.";
+      }
+    }
+  }
+}
+
+function startPath(path) {
+  wizard.path = path;
+  state.stegoReady = false;
+  goTo(PATHS[path][0].id);
+}
+
+function goHome() {
+  state.stegoReady = false;
+  goTo("home");
+}
+
+function bindWizard() {
+  document.querySelectorAll("[data-path]").forEach((btn) => {
+    btn.addEventListener("click", () => startPath(btn.getAttribute("data-path")));
+  });
+  $("btnBack").addEventListener("click", () => {
+    if (wizard.screen === "home") return;
+    const idx = stepIndex(wizard.screen);
+    if (idx <= 0) goTo("home");
+    else goTo(pathSteps()[idx - 1].id);
+  });
+  $("btnNext").addEventListener("click", () => {
+    if (!canUnlock(wizard.screen)) {
+      toast("Complete this step’s action before continuing.", "warn");
+      return;
+    }
+    const idx = stepIndex(wizard.screen);
+    const steps = pathSteps();
+    if (idx < 0 || idx >= steps.length - 1) return;
+    goTo(steps[idx + 1].id);
+  });
+  $("btnRestart").addEventListener("click", goHome);
+  $("gotoDecode").addEventListener("click", () => startPath("recover"));
+  const title = $("homeTitle");
+  title.addEventListener("click", goHome);
+  title.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHome(); }
+  });
+}
 
 const CHARSETS = {
   dense: "@%#*+=-:. ",
@@ -877,6 +1105,7 @@ function showImagePreview(img, msg) {
   p.style.display = "block";
   renderAscii();
   updateCapacity();
+  refreshWizard();
   toast(msg, "success");
 }
 
@@ -1037,6 +1266,7 @@ function renderAscii() {
     out.textContent = state.asciiText; // fast path: single assignment
     out.style.textShadow = "0 0 6px currentColor";
   }
+  refreshWizard();
 }
 
 const renderAsciiDebounced = debounce(renderAscii, 120);
@@ -1235,7 +1465,7 @@ function updatePayloadMeta() {
   const payload = getPayload();
   if (!payload) { el.textContent = ""; return; }
   const bytes = stringToUtf8Bytes(payload).length;
-  el.innerHTML = `${bytes.toLocaleString()} bytes · <span class="rdy">ready to hide in Stego Lab ↓</span>`;
+  el.innerHTML = `${bytes.toLocaleString()} bytes · <span class="rdy">ready to hide</span>`;
 }
 
 async function runEncrypt() {
@@ -1248,6 +1478,7 @@ async function runEncrypt() {
     $("payloadOut").textContent = payload;
     updatePayloadMeta();
     updateCapacity();
+    refreshWizard();
     toast(mode === "aes" ? "Encrypted with AES-GCM." : "Encoded (puzzle mode).", "success");
   } catch (e) {
     toast(e.message || "Encryption failed.", "error");
@@ -1457,21 +1688,25 @@ function runHide() {
 
   if (mode === "ascii") {
     out.textContent = buildAsciiBlock(payload);
+    markStegoReady();
     toast("Payload appended to ASCII block. Copy or export the TXT.", "success");
   } else if (mode === "png") {
     if (!state.imageEl) { toast("No image selected for PNG stego.", "error"); return; }
     downloadStegoPng(payload, () => {
       out.textContent = "PNG exported with hidden payload (LSB). Re-import to extract.";
+      markStegoReady();
     });
   } else if (mode === "html") {
     downloadHtmlArtifact(payload, "HTML artifact downloaded.");
-    out.textContent = "Self-contained HTML artifact downloaded (stegatrix-artifact-*.html). It contains the ASCII art plus the embedded payload. Re-import it in the panel below to recover.";
+    out.textContent = "Self-contained HTML artifact downloaded (stegatrix-artifact-*.html). It contains the ASCII art plus the embedded payload. Re-import it to recover.";
+    markStegoReady();
   } else if (mode === "zw") {
     const zw = encodeZeroWidth(payload);
     const cover = ($("zwCover").value || "").trim() || "hello there";
     const parts = cover.split(" ");
     parts[0] = parts[0] + zw;
     out.textContent = parts.join(" ");
+    markStegoReady();
     toast("Zero-width text ready — use Copy (invisible chars are included).", "warn");
   }
 }
@@ -1484,6 +1719,7 @@ function showExtracted(payload) {
     const p = JSON.parse(payload);
     if (p && p.type === "aes-gcm") { $("decMode").value = "aes"; }
   } catch (e) { /* not JSON */ }
+  refreshWizard();
 }
 
 // Try every text carrier in turn: HTML script tag, ASCII block, zero-width, then raw.
@@ -1698,7 +1934,16 @@ function init() {
   $("cipherMode").addEventListener("change", (e) => { state.settings.cipherMode = e.target.value; syncCipherUi(); });
   $("encryptBtn").addEventListener("click", runEncrypt);
   $("decryptBtn").addEventListener("click", runDecrypt);
-  $("clearCipher").addEventListener("click", () => { $("secret").value = ""; $("payloadOut").textContent = ""; $("plainOut").textContent = ""; state.encryptedPayload = ""; updatePayloadMeta(); updateCapacity(); });
+  $("clearCipher").addEventListener("click", () => {
+    $("secret").value = "";
+    $("payloadOut").textContent = "";
+    $("plainOut").textContent = "";
+    state.encryptedPayload = "";
+    state.stegoReady = false;
+    updatePayloadMeta();
+    updateCapacity();
+    refreshWizard();
+  });
 
   // --- Stego ---
   $("stegoMode").addEventListener("change", (e) => {
@@ -1752,15 +1997,14 @@ function init() {
     });
   });
 
-  // --- Export panel ---
-  $("expPng").addEventListener("click", exportPngWithPayload);
-  $("expHtml").addEventListener("click", exportHtmlArtifact);
-  $("expAsciiTxt").addEventListener("click", exportAsciiTxt);
+  // --- Advanced exports (finish strip) ---
   $("expPayloadJson").addEventListener("click", exportPayloadJson);
   $("expReadme").addEventListener("click", exportReadme);
 
   syncCipherUi();
   syncDecUi();
+  bindWizard();
+  goTo("home");
 }
 
 document.addEventListener("DOMContentLoaded", init);
