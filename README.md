@@ -63,7 +63,7 @@ That's it. The entire app (HTML + CSS + JS) lives in that one file.
 
 > AES-GCM uses the browser's Web Crypto API, which is available on `file://`, `http://localhost`, and any `https://` origin.
 
-Live demo: [atahan99.github.io/Stegatrix](https://atahan99.github.io/Stegatrix/) · Source: [github.com/atahan99/Stegatrix](https://github.com/atahan99/Stegatrix)
+Live demo: [stegatrix.cybrsmr.xyz](https://stegatrix.cybrsmr.xyz) · Source: [github.com/atahan99/Stegatrix](https://github.com/atahan99/Stegatrix)
 
 ---
 
