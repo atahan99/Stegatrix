@@ -10,6 +10,11 @@
 *.log
 tmp/
 
+# Local Cloudflare deploy config
+wrangler.jsonc
+.assetsignore
+.wrangler/
+
 # Stegatrix artifacts generated at runtime (do not commit user output)
 stegatrix-ascii-*.txt
 stegatrix-stego-*.png
@@ -17,3 +22,8 @@ stegatrix-stego-*.txt
 stegatrix-artifact-*.html
 stegatrix-payload-*.json
 stegatrix-instructions-*.txt
+
+# Impeccable working files (review captures, decision logs, caches)
+.impeccable/review/
+.impeccable/questions/
+.impeccable/hook.cache.json
