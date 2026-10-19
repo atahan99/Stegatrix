@@ -2,7 +2,9 @@
 
 Hide an encrypted message inside an image, a text file or a web page, entirely in your browser.
 
-**[Live demo](https://stegatrix.cybrsmr.xyz)** · single HTML file · no build step · no dependencies
+[![test](https://github.com/atahan99/Stegatrix/actions/workflows/test.yml/badge.svg)](https://github.com/atahan99/Stegatrix/actions/workflows/test.yml)
+
+**[Live demo](https://stegatrix.cybrsmr.xyz)** · plain HTML and JS · no build step · no dependencies
 
 ![Stegatrix home screen](docs/screenshots/hero.png)
 
@@ -65,12 +67,22 @@ The page loads no third-party scripts, has no analytics and makes no network req
 git clone https://github.com/atahan99/Stegatrix.git
 ```
 
-Open `index.html` in any modern browser. Web Crypto works on `file://`, `localhost` and HTTPS, so you don't need a server.
+Open `index.html` in any modern browser. It loads `core.js` from the same folder. Web Crypto works on `file://`, `localhost` and HTTPS, so you don't need a server.
+
+## Tests
+
+```bash
+node --test
+```
+
+Node 20 or newer, no install. The tests round-trip every cipher and carrier, and check wrong passwords, tampered ciphertext, the iteration cap, PNG capacity and alpha handling. CI runs them on every push.
 
 ## Project layout
 
 ```
-index.html        the whole app: markup, styles and script
+index.html        UI: markup, styles and browser glue (canvas, files, wizard)
+core.js           pure cipher and stego functions, shared with the tests
+tests/            node --test suite
 _headers          security headers for Cloudflare Pages (CSP, frame and referrer policy)
 favicon.svg
 docs/screenshots/
