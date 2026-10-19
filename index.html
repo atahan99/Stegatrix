@@ -231,7 +231,7 @@ input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px;cursor:poin
 
 /* ---------- Buttons ---------- */
 .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
-button.btn{
+.btn{
   font-family:var(--mono);
   font-size:13px;letter-spacing:1px;
   padding:9px 16px;
@@ -244,15 +244,15 @@ button.btn{
   transition:all .15s ease;
   box-shadow:0 0 10px rgba(0,245,255,0.12);
 }
-button.btn:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 18px rgba(0,245,255,0.4);transform:translateY(-1px)}
-button.btn:active{transform:translateY(0)}
-button.btn.magenta{border-color:var(--magenta);color:var(--magenta);background:rgba(255,43,214,0.08);box-shadow:0 0 10px rgba(255,43,214,0.15)}
-button.btn.magenta:hover{background:rgba(255,43,214,0.2);box-shadow:0 0 18px rgba(255,43,214,0.45)}
-button.btn.green{border-color:var(--green);color:var(--green);background:rgba(57,255,20,0.08)}
-button.btn.green:hover{background:rgba(57,255,20,0.18);box-shadow:0 0 18px rgba(57,255,20,0.4)}
-button.btn.ghost{border-color:var(--muted);color:var(--muted);background:transparent}
-button.btn.ghost:hover{color:var(--text);border-color:var(--text)}
-button.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 18px rgba(0,245,255,0.4);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.magenta{border-color:var(--magenta);color:var(--magenta);background:rgba(255,43,214,0.08);box-shadow:0 0 10px rgba(255,43,214,0.15)}
+.btn.magenta:hover{background:rgba(255,43,214,0.2);box-shadow:0 0 18px rgba(255,43,214,0.45)}
+.btn.green{border-color:var(--green);color:var(--green);background:rgba(57,255,20,0.08)}
+.btn.green:hover{background:rgba(57,255,20,0.18);box-shadow:0 0 18px rgba(57,255,20,0.4)}
+.btn.ghost{border-color:var(--muted);color:var(--muted);background:transparent}
+.btn.ghost:hover{color:var(--text);border-color:var(--text)}
+.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* ---------- Dropzone ---------- */
 .dropzone{
@@ -338,6 +338,9 @@ pre.ascii.theme-green{color:var(--green)}
 ul.limits{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
 ul.limits li{margin:6px 0}
 ul.limits b{color:var(--text)}
+.about-links{display:flex;flex-wrap:wrap;gap:10px}
+.about-links .btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none}
+.about-links .btn svg{display:block}
 
 
 .mini{font-size:11px;color:var(--muted)}
@@ -576,10 +579,6 @@ button.step{appearance:none;-webkit-appearance:none}
                   <button type="button" class="pw-toggle" data-target="aesPassword" aria-label="Show or hide password">show</button>
                 </div>
               </div>
-              <div class="field">
-                <label for="aesIterations">PBKDF2 iterations</label>
-                <input type="number" id="aesIterations" value="600000" min="100000" max="2000000" step="10000" />
-              </div>
             </div>
           </div>
 
@@ -748,11 +747,11 @@ button.step{appearance:none;-webkit-appearance:none}
         <li><b>All processing happens locally in your browser.</b> Nothing is uploaded to any server.</li>
       </ul>
       <hr class="sep" />
-      <div class="mini">
-        Open source on GitHub:
-        <a href="https://github.com/atahan99/Stegatrix" target="_blank" rel="noopener noreferrer">github.com/atahan99/Stegatrix</a>
-        &middot; Live demo:
-        <a href="https://stegatrix.cybrsmr.xyz" target="_blank" rel="noopener noreferrer">stegatrix.cybrsmr.xyz</a>
+      <div class="about-links">
+        <a class="btn" href="https://github.com/atahan99/Stegatrix" target="_blank" rel="noopener noreferrer" aria-label="View Stegatrix on GitHub">
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>GitHub repository</span>
+        </a>
       </div>
     </div>
   </details>
@@ -770,7 +769,7 @@ button.step{appearance:none;-webkit-appearance:none}
 /* --- Utilities --- */
 const $ = (id) => document.getElementById(id);
 const {
-  PNG_MAGIC, HTML_PAYLOAD_ID, PBKDF2_MIN, PBKDF2_MAX, stringToUtf8Bytes, escapeHtml, hasWebCrypto, applyCipher, buildAsciiBlock, extractAsciiBlock, embedPayloadInImageData, extractPayloadFromImageData, buildHtmlArtifact, decodeHtmlPayloadText, encodeZeroWidth, decodeZeroWidth
+  HTML_PAYLOAD_ID, stringToUtf8Bytes, escapeHtml, hasWebCrypto, applyCipher, payloadMode, embedPayloadKeyed, openPayloadKeyed, pngBytesNeeded, buildAsciiBlock, extractAsciiBlock, embedPayloadInImageData, extractPayloadFromImageData, buildHtmlArtifact, decodeHtmlPayloadText, encodeZeroWidth, decodeZeroWidth
 } = StegatrixCore;
 
 function timestamp() {
@@ -827,6 +826,7 @@ const state = {
   asciiRows: null,
   encryptedPayload: "",
   extractedPayload: "",
+  keyedPng: null, // imported PNG with no visible marker; only a password can open it
   stegoReady: false,
   settings: {
     asciiWidth: 120,
@@ -858,7 +858,7 @@ const PATHS = {
 const UNLOCK = {
   image: () => !!state.imageEl && !!state.asciiText,
   cipher: () => !!state.encryptedPayload,
-  import: () => !!state.extractedPayload
+  import: () => !!state.extractedPayload || !!state.keyedPng
 };
 const wizard = { path: null, screen: "home" };
 
@@ -1256,8 +1256,7 @@ function cipherFields(source) {
     caesarShift: parseInt($("caesarShift").value, 10) || 0,
     vigenereKey: $("vigenereKey").value,
     xorKey: $("xorKey").value,
-    aesPassword: $("aesPassword").value,
-    aesIterations: Math.min(PBKDF2_MAX, Math.max(PBKDF2_MIN, parseInt($("aesIterations").value, 10) || 600000))
+    aesPassword: $("aesPassword").value
   };
 }
 
@@ -1299,23 +1298,25 @@ async function runDecrypt() {
   }
 }
 
-// Produce a PNG blob (from current work canvas image) with payload embedded
-function makeStegoPngBlob(payload, cb) {
-  if (!state.imageEl) { toast("No image selected.", "error"); return; }
-  // Use the source image at natural resolution for maximum capacity
+// PNG blob of the source image (natural resolution) with the payload embedded.
+// AES payloads use the keyed, marker-free layout; everything else uses the public marker layout.
+async function makeStegoPngBlob(payload) {
   const img = state.imageEl;
   const cvs = document.createElement("canvas");
   cvs.width = img.naturalWidth || img.width;
   cvs.height = img.naturalHeight || img.height;
   const c = cvs.getContext("2d");
+  // Flatten onto white: canvas stores premultiplied alpha, which would erase bits in transparent pixels.
+  c.fillStyle = "#fff";
+  c.fillRect(0, 0, cvs.width, cvs.height);
   c.drawImage(img, 0, 0, cvs.width, cvs.height);
   let imageData;
   try { imageData = c.getImageData(0, 0, cvs.width, cvs.height); }
-  catch (e) { toast("Cannot read image pixels for embedding.", "error"); return; }
-  try { embedPayloadInImageData(imageData, payload); }
-  catch (e) { toast(e.message, "error"); return; }
+  catch (e) { throw new Error("Cannot read image pixels for embedding."); }
+  if (payloadMode(payload) === "aes") await embedPayloadKeyed(imageData, payload, $("aesPassword").value);
+  else embedPayloadInImageData(imageData, payload);
   c.putImageData(imageData, 0, 0);
-  cvs.toBlob((blob) => cb(blob), "image/png");
+  return new Promise((resolve) => cvs.toBlob(resolve, "image/png"));
 }
 
 // Capacity estimator for PNG mode
@@ -1330,7 +1331,7 @@ function updateCapacity() {
   const capBits = w * h * 3;
   const capBytes = Math.floor(capBits / 8);
   const payload = state.encryptedPayload || "";
-  const needBytes = PNG_MAGIC.length + 4 + stringToUtf8Bytes(payload).length;
+  const needBytes = payload ? pngBytesNeeded(payload) : 0;
   const fits = payload && needBytes <= capBytes;
   let html = `Capacity: <b>${capBytes.toLocaleString()}</b> bytes (${w}×${h}×3 bits).`;
   if (payload) {
@@ -1341,7 +1342,9 @@ function updateCapacity() {
     html += " <span class='bad'>No payload yet.</span>";
   }
   box.innerHTML = html;
-  warn.textContent = "PNG only — JPEG/WebP compression will destroy hidden bits.";
+  warn.textContent = payload && payloadMode(payload) !== "aes"
+    ? "Without AES-GCM the PNG carries a public marker, so anyone with Stegatrix can read it. JPEG/WebP compression will also destroy the hidden bits."
+    : "PNG only — JPEG/WebP compression will destroy hidden bits.";
   warn.className = "warn show";
 }
 
@@ -1357,12 +1360,13 @@ function extractHtmlPayload(htmlText) {
 }
 
 
-function downloadStegoPng(payload, after) {
-  makeStegoPngBlob(payload, (blob) => {
-    downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
-    toast("Stego PNG exported.", "success");
-    if (after) after();
-  });
+async function downloadStegoPng(payload, after) {
+  let blob;
+  try { blob = await makeStegoPngBlob(payload); }
+  catch (e) { toast(e.message, "error"); return; }
+  downloadBlob(blob, `stegatrix-stego-${timestamp()}.png`);
+  toast("Stego PNG exported.", "success");
+  if (after) after();
 }
 
 function downloadHtmlArtifact(payload, okMsg) {
@@ -1403,12 +1407,19 @@ function runHide() {
 /* --- Import / Decode --- */
 function showExtracted(payload) {
   state.extractedPayload = payload;
+  state.keyedPng = null;
   $("extractOut").textContent = payload;
-  // Prefill decode mode to AES if it looks like an AES payload
-  try {
-    const p = JSON.parse(payload);
-    if (p && p.type === "aes-gcm") { $("decMode").value = "aes"; }
-  } catch (e) { /* not JSON */ }
+  $("decMode").value = payloadMode(payload) || "auto"; // envelopes name their mode
+  syncDecUi();
+  refreshWizard();
+}
+
+function showKeyedPng(imageData) {
+  state.extractedPayload = "";
+  state.keyedPng = imageData;
+  $("extractOut").textContent = "No visible payload. If this PNG was hidden with an AES password, continue and enter it.";
+  $("decMode").value = "aes";
+  syncDecUi();
   refreshWizard();
 }
 
@@ -1441,10 +1452,13 @@ function handleImportFile(file) {
       try { imageData = c.getImageData(0, 0, cvs.width, cvs.height); }
       catch (e) { toast("Cannot read PNG pixels.", "error"); return; }
       try {
-        const payload = extractPayloadFromImageData(imageData);
-        showExtracted(payload);
+        showExtracted(extractPayloadFromImageData(imageData));
         toast("Payload extracted from PNG.", "success");
-      } catch (e) { toast(e.message, "error"); }
+      } catch (e) {
+        // No public marker: it may be a keyed PNG, which can't be told apart from a plain image without the password.
+        showKeyedPng(imageData);
+        toast("PNG loaded. Enter the password on the next step.", "success");
+      }
     };
     img.onerror = () => { URL.revokeObjectURL(url); toast("Could not load PNG.", "error"); };
     img.src = url;
@@ -1468,13 +1482,21 @@ function handleImportFile(file) {
 }
 
 async function runRecover() {
-  const payload = state.extractedPayload || $("extractOut").textContent;
+  if (state.keyedPng) {
+    const password = $("decPassword").value;
+    if (!password) { toast("Enter the password the PNG was hidden with.", "error"); return; }
+    try {
+      $("recoverOut").textContent = await openPayloadKeyed(state.keyedPng, password);
+      toast("Message recovered.", "success");
+    } catch (e) {
+      toast(e.message, "error");
+    }
+    return;
+  }
+  const payload = state.extractedPayload;
   if (!payload) { toast("Nothing extracted yet — import an artifact first.", "error"); return; }
   let mode = $("decMode").value;
-  if (mode === "auto") {
-    try { const p = JSON.parse(payload); mode = p && p.type === "aes-gcm" ? "aes" : "base64"; }
-    catch (e) { mode = "base64"; }
-  }
+  if (mode === "auto") mode = payloadMode(payload) || "base64";
   try {
     $("recoverOut").textContent = await applyCipher(mode, payload, cipherFields("recover"), false);
     toast("Message recovered.", "success");
@@ -1530,8 +1552,9 @@ const README_TEXT = [
   " - LSB steganography survives only in lossless PNG. JPEG/WebP/resize/screenshots destroy it.",
   " - Zero-width stego is experimental and often stripped by apps.",
   "",
-  "Internal markers: PNG magic STGTRX1 | ASCII ---BEGIN/END STEGATRIX PAYLOAD--- |",
-  "HTML script id stegatrix-payload | payload.app STEGATRIX."
+  "AES PNGs have no marker: the password picks which pixels hold the message.",
+  "Other markers: puzzle-mode PNG magic STGTRX1 | ASCII ---BEGIN/END STEGATRIX PAYLOAD--- |",
+  "HTML script id stegatrix-payload."
 ].join("\n");
 
 /* --- Wiring --- */

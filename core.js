@@ -13,8 +13,10 @@ const HTML_PAYLOAD_ID = "stegatrix-payload";
 const ZW_MAGIC = "\u2063\u2063";
 const ZW_ZERO = "\u200B";
 const ZW_ONE = "\u200C";
-const PBKDF2_MIN = 100000;
-const PBKDF2_MAX = 2000000; // also bounds iterations read from imported payloads
+const PBKDF2_ITERATIONS = 600000;
+const PBKDF2_MAX = 2000000; // bounds iterations read from imported payloads
+const ENVELOPE_VERSION = 2;
+const MODES = ["aes", "base64", "caesar", "atbash", "vigenere", "xor"];
 
 const stringToUtf8Bytes = (str) => enc.encode(str);
 const utf8BytesToString = (bytes) => utf8Dec.decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
@@ -129,46 +131,34 @@ function xorCipherFromBase64(b64, key) {
 
 function hasWebCrypto() { return !!(globalThis.crypto && globalThis.crypto.subtle); }
 
-async function deriveAesKey(password, salt, iterations) {
-  const material = await crypto.subtle.importKey(
-    "raw", stringToUtf8Bytes(password), { name: "PBKDF2" }, false, ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    material,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
+async function deriveKeyBits(password, salt, iterations) {
+  const material = await crypto.subtle.importKey("raw", stringToUtf8Bytes(password), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, material, 256));
+}
+// Same key PBKDF2 deriveKey would give, so v1 payloads still decrypt.
+const importAesKey = (bits) => crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["encrypt", "decrypt"]);
+const deriveAesKey = async (password, salt, iterations) => importAesKey(await deriveKeyBits(password, salt, iterations));
+
+function aesEnvelope(iterations, salt, iv, ciphertext) {
+  return {
+    v: ENVELOPE_VERSION, mode: "aes", kdf: "PBKDF2", hash: "SHA-256", iterations,
+    salt: bytesToBase64(salt), iv: bytesToBase64(iv), ciphertext: bytesToBase64(ciphertext)
+  };
 }
 
-async function aesEncrypt(plaintext, password, iterations) {
+async function aesEncrypt(plaintext, password, iterations = PBKDF2_ITERATIONS) {
   if (!hasWebCrypto()) throw new Error("This browser does not support the Web Crypto API.");
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await deriveAesKey(password, salt, iterations);
   const cipherBuf = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, stringToUtf8Bytes(plaintext));
-  return {
-    app: "STEGATRIX",
-    version: 1,
-    type: "aes-gcm",
-    kdf: "PBKDF2",
-    hash: "SHA-256",
-    iterations,
-    salt: bytesToBase64(salt),
-    iv: bytesToBase64(iv),
-    ciphertext: bytesToBase64(new Uint8Array(cipherBuf)),
-    createdAt: new Date().toISOString()
-  };
+  return aesEnvelope(iterations, salt, iv, new Uint8Array(cipherBuf));
 }
 
 async function aesDecrypt(payload, password) {
   if (!hasWebCrypto()) throw new Error("This browser does not support the Web Crypto API.");
-  let p = payload;
-  if (typeof payload === "string") {
-    try { p = JSON.parse(payload); } catch (e) { throw new Error("Payload is not valid JSON."); }
-  }
-  if (!p || p.type !== "aes-gcm" || !p.salt || !p.iv || !p.ciphertext) {
+  const p = typeof payload === "string" ? parseEnvelope(payload) : payload;
+  if (!p || (p.mode !== "aes" && p.type !== "aes-gcm") || !p.salt || !p.iv || !p.ciphertext) {
     throw new Error("Not a valid AES-GCM payload.");
   }
   const salt = base64ToBytes(p.salt);
@@ -187,19 +177,40 @@ async function aesDecrypt(payload, password) {
   return utf8BytesToString(new Uint8Array(plainBuf));
 }
 
-async function applyCipher(mode, text, fields, encrypt) {
+// Every payload is a JSON envelope naming its mode, so Recover can tell how it was made.
+// Returns null for raw pre-envelope payloads; v1 AES envelopes ({type: "aes-gcm"}) count as mode "aes".
+function parseEnvelope(text) {
+  let p;
+  try { p = JSON.parse(text); } catch (e) { return null; }
+  if (!p || typeof p !== "object") return null;
+  if (p.type === "aes-gcm") return Object.assign({}, p, { mode: "aes" });
+  return MODES.includes(p.mode) ? p : null;
+}
+const payloadMode = (text) => { const env = parseEnvelope(text); return env ? env.mode : null; };
+
+function puzzleCipher(mode, text, fields, encrypt) {
   if (mode === "base64") return encrypt ? textToBase64(text) : base64ToText(text.trim());
   if (mode === "caesar") return encrypt ? caesarEncrypt(text, fields.caesarShift) : caesarDecrypt(text, fields.caesarShift);
   if (mode === "atbash") return atbash(text);
   if (mode === "vigenere") return vigenere(text, fields.vigenereKey, !encrypt);
   if (mode === "xor") return encrypt ? xorCipherToBase64(text, fields.xorKey) : xorCipherFromBase64(text.trim(), fields.xorKey);
+  throw new Error("Unknown cipher mode.");
+}
+
+// Encrypting always returns an envelope. Decrypting trusts the envelope's mode; `mode` only matters for raw legacy payloads.
+async function applyCipher(mode, text, fields, encrypt) {
+  if (!encrypt) {
+    const env = parseEnvelope(text);
+    if (env) { mode = env.mode; if (mode !== "aes") text = String(env.data); }
+  }
   if (mode === "aes") {
     if (!fields.aesPassword) throw new Error("Missing password for AES-GCM.");
     return encrypt
-      ? JSON.stringify(await aesEncrypt(text, fields.aesPassword, fields.aesIterations), null, 2)
+      ? JSON.stringify(await aesEncrypt(text, fields.aesPassword))
       : await aesDecrypt(text, fields.aesPassword);
   }
-  throw new Error("Unknown cipher mode.");
+  const out = puzzleCipher(mode, text, fields, encrypt);
+  return encrypt ? JSON.stringify({ v: ENVELOPE_VERSION, mode, data: out }) : out;
 }
 
 function buildAsciiBlock(asciiText, payload) {
@@ -214,7 +225,7 @@ function extractAsciiBlock(text) {
   try { return base64ToText(body); } catch (e) { return body; }
 }
 
-// PNG LSB: magic + len(BE) + UTF-8 payload in R/G/B LSBs
+// Marker PNG (non-AES payloads): magic + len(BE) + UTF-8 payload in R/G/B LSBs, in pixel order. Anyone can read it.
 function embedPayloadInImageData(imageData, payloadString) {
   const payloadBytes = stringToUtf8Bytes(payloadString);
   const magic = stringToUtf8Bytes(PNG_MAGIC);
@@ -268,6 +279,126 @@ function extractPayloadFromImageData(imageData) {
   const payloadBits = readBits(len * 8, headerBits);
   const payloadBytes = bitsToBytes(payloadBits);
   return utf8BytesToString(payloadBytes);
+}
+
+// ----- Keyed PNG (AES payloads): no marker, password-keyed pixel order, masked length -----
+// Layout over R/G/B "slots" (slot s = channel s % 3 of pixel s / 3, alpha never used):
+//   slots 0..127            salt, in order (random bytes, needed before any key exists)
+//   keyed slots from 128+   masked length (4) | iv (12) | ciphertext, in an order only the password reproduces
+const SALT_SLOTS = 128;
+const KEYED_NOT_FOUND = "Wrong password, or this PNG has no hidden message.";
+const slotCount = (imageData) => (imageData.data.length / 4) * 3;
+const slotIndex = (s) => ((s / 3) | 0) * 4 + (s % 3);
+
+function randomBytes(n) {
+  const out = new Uint8Array(n);
+  for (let i = 0; i < n; i += 65536) crypto.getRandomValues(out.subarray(i, i + 65536)); // per-call limit is 64 KiB
+  return out;
+}
+
+// LSB matching: when a bit needs flipping, step the value randomly up or down by 1 instead of overwriting the LSB.
+// Replacement only ever swaps within pairs (2k <-> 2k+1), which is exactly what chi-square, RS and sample-pairs analysis detect.
+function writeSlots(data, slots, bytes) {
+  const bits = bytesToBits(bytes);
+  const coin = randomBytes(bits.length);
+  for (let i = 0; i < bits.length; i++) {
+    const at = slotIndex(slots[i]);
+    const v = data[at];
+    if ((v & 1) !== bits[i]) data[at] = v === 0 ? 1 : v === 255 ? 254 : v + (coin[i] & 1 ? 1 : -1);
+    data[at - (at % 4) + 3] = 255; // canvas stores premultiplied alpha, so LSBs only survive in opaque pixels
+  }
+}
+function readSlots(data, slots) {
+  const bits = new Uint8Array(slots.length);
+  for (let i = 0; i < slots.length; i++) bits[i] = data[slotIndex(slots[i])] & 1;
+  return bitsToBytes(bits);
+}
+const saltSlots = () => Uint32Array.from({ length: SALT_SLOTS }, (_, i) => i);
+
+// AES-CTR keystream under a key HKDF-derived from the password key: 4 bytes of length mask, then 4 bytes per slot pick.
+async function orderStream(keyBits, salt, picks) {
+  const hkdf = await crypto.subtle.importKey("raw", keyBits, "HKDF", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt, info: stringToUtf8Bytes("stegatrix png order v2") },
+    hkdf, { name: "AES-CTR", length: 128 }, false, ["encrypt"]
+  );
+  const zeros = new Uint8Array(4 + picks * 4);
+  return new Uint8Array(await crypto.subtle.encrypt({ name: "AES-CTR", counter: new Uint8Array(16), length: 64 }, key, zeros));
+}
+
+// First `count` slots of a keystream-driven shuffle of [SALT_SLOTS, n): sparse Fisher-Yates, O(count) memory.
+function pickSlots(stream, n, count) {
+  const range = n - SALT_SLOTS;
+  const moved = new Map();
+  const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+  const out = new Uint32Array(count);
+  for (let i = 0; i < count; i++) {
+    // shortcut: modulo bias is at most range/2^32 (~1% on a 12 MP image), switch to rejection sampling if positions must be exactly uniform
+    const j = i + (view.getUint32(4 + i * 4) % (range - i));
+    const atI = moved.has(i) ? moved.get(i) : i;
+    out[i] = SALT_SLOTS + (moved.has(j) ? moved.get(j) : j);
+    moved.set(j, atI);
+  }
+  return out;
+}
+
+const maskLength = (len, stream) => uint32ToBytesBE(len).map((b, k) => b ^ stream[k]);
+
+async function embedPayloadKeyed(imageData, payload, password) {
+  const env = parseEnvelope(payload);
+  if (!env || env.mode !== "aes") throw new Error("Keyed PNG hiding needs an AES-GCM payload.");
+  if (env.iterations !== PBKDF2_ITERATIONS) throw new Error("This message uses an older key setting. Encrypt it again.");
+  const salt = base64ToBytes(env.salt), iv = base64ToBytes(env.iv), ct = base64ToBytes(env.ciphertext);
+  if (salt.length !== 16 || iv.length !== 12) throw new Error("Not a valid AES-GCM payload.");
+  const n = slotCount(imageData);
+  const bodyBits = (4 + 12 + ct.length) * 8;
+  if (SALT_SLOTS + bodyBits > n) throw new Error("Payload too large for image capacity.");
+
+  const keyBits = await deriveKeyBits(password, salt, PBKDF2_ITERATIONS);
+  // The pixel order comes from the password, so a mismatched one would hide a message nobody can find.
+  try { await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await importAesKey(keyBits), ct); }
+  catch (e) { throw new Error("The password doesn't match the encrypted message. Encrypt it again."); }
+
+  const stream = await orderStream(keyBits, salt, bodyBits);
+  const body = new Uint8Array(4 + 12 + ct.length);
+  body.set(maskLength(ct.length, stream), 0);
+  body.set(iv, 4);
+  body.set(ct, 16);
+  writeSlots(imageData.data, saltSlots(), salt);
+  writeSlots(imageData.data, pickSlots(stream, n, bodyBits), body);
+  return imageData;
+}
+
+// Finds, decrypts and returns the message. Wrong password and "nothing here" fail identically by design.
+async function openPayloadKeyed(imageData, password) {
+  const data = imageData.data;
+  const n = slotCount(imageData);
+  const headerBits = (4 + 12) * 8;
+  if (SALT_SLOTS + headerBits + 128 > n) throw new Error(KEYED_NOT_FOUND);
+  const salt = readSlots(data, saltSlots());
+  const keyBits = await deriveKeyBits(password, salt, PBKDF2_ITERATIONS);
+
+  const headStream = await orderStream(keyBits, salt, headerBits);
+  const head = readSlots(data, pickSlots(headStream, n, headerBits));
+  const len = bytesBEToUint32(maskLength(bytesBEToUint32(head, 0), headStream), 0);
+  if (len < 16 || SALT_SLOTS + headerBits + len * 8 > n) throw new Error(KEYED_NOT_FOUND);
+
+  const bodyBits = headerBits + len * 8;
+  const stream = await orderStream(keyBits, salt, bodyBits);
+  const body = readSlots(data, pickSlots(stream, n, bodyBits));
+  try {
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: body.subarray(4, 16) }, await importAesKey(keyBits), body.subarray(16));
+    return utf8BytesToString(new Uint8Array(plain));
+  } catch (e) {
+    throw new Error(KEYED_NOT_FOUND);
+  }
+}
+
+// Bytes the PNG carrier needs: keyed layout for AES envelopes, marker layout for everything else.
+function pngBytesNeeded(payload) {
+  const env = parseEnvelope(payload);
+  if (env && env.mode === "aes") return SALT_SLOTS / 8 + 4 + 12 + base64ToBytes(env.ciphertext).length;
+  return PNG_MAGIC.length + 4 + stringToUtf8Bytes(payload).length;
 }
 
 // ----- (c) Self-contained HTML artifact -----
@@ -325,9 +456,7 @@ function decodeZeroWidth(text) {
 }
 
 const api = {
-  PNG_MAGIC,
   HTML_PAYLOAD_ID,
-  PBKDF2_MIN,
   PBKDF2_MAX,
   stringToUtf8Bytes,
   escapeHtml,
@@ -335,6 +464,10 @@ const api = {
   aesEncrypt,
   aesDecrypt,
   applyCipher,
+  payloadMode,
+  embedPayloadKeyed,
+  openPayloadKeyed,
+  pngBytesNeeded,
   buildAsciiBlock,
   extractAsciiBlock,
   embedPayloadInImageData,
