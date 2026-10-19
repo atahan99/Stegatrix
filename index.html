@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <title>Stegatrix — Image → Encrypt → Hide</title>
 <style>
 /* Stegatrix — cyberpunk neon / synthwave / hacker terminal */
@@ -338,9 +339,6 @@ ul.limits{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
 ul.limits li{margin:6px 0}
 ul.limits b{color:var(--text)}
 
-.debug-canvas-wrap{margin-top:12px}
-canvas#work{display:none;max-width:100%;border:1px dashed var(--muted);border-radius:8px;margin-top:8px}
-canvas#work.show{display:block}
 
 .mini{font-size:11px;color:var(--muted)}
 kbd{background:rgba(0,245,255,0.1);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--cyan)}
@@ -430,10 +428,6 @@ button.step{appearance:none;-webkit-appearance:none}
       <span class="badge">no upload</span>
     </div>
     <div class="workflow" id="workflow" aria-label="Workflow steps"></div>
-    <div class="check" style="justify-content:center">
-      <input type="checkbox" id="debugMode" />
-      <label for="debugMode">Debugging mode (show work canvas)</label>
-    </div>
   </header>
 
   <div class="stage">
@@ -535,10 +529,6 @@ button.step{appearance:none;-webkit-appearance:none}
               <div class="check"><input type="checkbox" id="colorMode" /><label for="colorMode">Color ASCII (use original pixel color)</label></div>
             </div>
           </details>
-
-          <div class="debug-canvas-wrap">
-            <canvas id="work" aria-hidden="true"></canvas>
-          </div>
         </div>
       </section>
     </div>
@@ -555,12 +545,12 @@ button.step{appearance:none;-webkit-appearance:none}
             <div class="field">
               <label for="cipherMode">Mode</label>
               <select id="cipherMode">
+                <option value="aes" selected>AES-GCM (secure)</option>
                 <option value="base64">None / Base64 wrapper</option>
                 <option value="caesar">Caesar cipher (puzzle)</option>
                 <option value="atbash">Atbash cipher (puzzle)</option>
                 <option value="vigenere">Vigenère cipher (puzzle)</option>
                 <option value="xor">XOR text cipher (puzzle)</option>
-                <option value="aes">AES-GCM (secure)</option>
               </select>
             </div>
           </div>
@@ -588,7 +578,7 @@ button.step{appearance:none;-webkit-appearance:none}
               </div>
               <div class="field">
                 <label for="aesIterations">PBKDF2 iterations</label>
-                <input type="number" id="aesIterations" value="250000" min="50000" max="2000000" step="10000" />
+                <input type="number" id="aesIterations" value="600000" min="100000" max="2000000" step="10000" />
               </div>
             </div>
           </div>
@@ -788,6 +778,8 @@ const HTML_PAYLOAD_ID = "stegatrix-payload";
 const ZW_MAGIC = "\u2063\u2063";
 const ZW_ZERO = "\u200B";
 const ZW_ONE = "\u200C";
+const PBKDF2_MIN = 100000;
+const PBKDF2_MAX = 2000000; // also bounds iterations read from imported payloads
 
 const stringToUtf8Bytes = (str) => enc.encode(str);
 const utf8BytesToString = (bytes) => utf8Dec.decode(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
@@ -905,7 +897,7 @@ const state = {
     fontSize: 7,
     lineHeight: 1.0,
     theme: "mono",
-    cipherMode: "base64",
+    cipherMode: "aes",
     stegoMode: "ascii"
   }
 };
@@ -1084,7 +1076,7 @@ function toast(msg, type) {
 }
 
 /* --- Image + ASCII --- */
-const work = $("work");
+const work = document.createElement("canvas"); // offscreen sampling canvas
 const wctx = work.getContext("2d", { willReadFrequently: true });
 
 function activeCharset() {
@@ -1117,7 +1109,7 @@ function loadImageFile(file) {
   const url = URL.createObjectURL(file);
   const img = new Image();
   img.onload = () => {
-    URL.revokeObjectURL(url);
+    $("previewImg").addEventListener("load", () => URL.revokeObjectURL(url), { once: true }); // preview reuses this URL
     showImagePreview(img, "Image loaded — forging ASCII.");
   };
   img.onerror = () => { URL.revokeObjectURL(url); toast("Could not load that image.", "error"); };
@@ -1416,7 +1408,11 @@ async function aesDecrypt(payload, password) {
   }
   const salt = base64ToBytes(p.salt);
   const iv = base64ToBytes(p.iv);
-  const key = await deriveAesKey(password, salt, p.iterations || 250000);
+  const iterations = p.iterations || 250000;
+  if (!Number.isInteger(iterations) || iterations < 1 || iterations > PBKDF2_MAX) {
+    throw new Error("Payload asks for an unsupported PBKDF2 iteration count.");
+  }
+  const key = await deriveAesKey(password, salt, iterations);
   let plainBuf;
   try {
     plainBuf = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, base64ToBytes(p.ciphertext));
@@ -1432,8 +1428,7 @@ function cipherFields(source) {
       caesarShift: parseInt($("decCaesar").value, 10) || 0,
       vigenereKey: $("decKey").value,
       xorKey: $("decKey").value,
-      aesPassword: $("decPassword").value,
-      aesIterations: 250000
+      aesPassword: $("decPassword").value
     };
   }
   return {
@@ -1441,7 +1436,7 @@ function cipherFields(source) {
     vigenereKey: $("vigenereKey").value,
     xorKey: $("xorKey").value,
     aesPassword: $("aesPassword").value,
-    aesIterations: Math.max(50000, parseInt($("aesIterations").value, 10) || 250000)
+    aesIterations: Math.min(PBKDF2_MAX, Math.max(PBKDF2_MIN, parseInt($("aesIterations").value, 10) || 600000))
   };
 }
 
@@ -1528,6 +1523,7 @@ function embedPayloadInImageData(imageData, payloadString) {
   }
   let bit = 0;
   for (let i = 0; i < data.length && bit < bits.length; i += 4) {
+    data[i + 3] = 255; // canvas stores premultiplied alpha, so LSBs only survive in opaque pixels
     for (let ch = 0; ch < 3 && bit < bits.length; ch++) {
       data[i + ch] = (data[i + ch] & 0xfe) | bits[bit++];
     }
@@ -1613,7 +1609,8 @@ function updateCapacity() {
 // ----- (c) Self-contained HTML artifact -----
 function buildHtmlArtifact(payload) {
   const asciiEsc = escapeHtml(state.asciiText || "(no ASCII generated)");
-  const payloadEsc = escapeHtml(payload);
+  // Script content is raw text (no entity decoding), so store a JSON string with every "<" escaped so the payload can't close the tag.
+  const payloadJson = JSON.stringify(payload).replace(/</g, "\\u003c");
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><title>Stegatrix Artifact</title>
 <style>
@@ -1625,7 +1622,7 @@ pre{white-space:pre;font-size:8px;line-height:1;text-shadow:0 0 4px #00f5ff;over
 <body>
 <h1>STEGATRIX ARTIFACT</h1>
 <pre>${asciiEsc}</pre>
-<script type="application/json" id="${HTML_PAYLOAD_ID}">${payloadEsc}<\/script>
+<script type="application/json" id="${HTML_PAYLOAD_ID}">${payloadJson}<\/script>
 <div class="note">
   <p>An encrypted payload is embedded in the script tag with id "${HTML_PAYLOAD_ID}".</p>
   <p>To recover: open Stegatrix, use the Import / Decode panel, load this HTML file,
@@ -1637,7 +1634,11 @@ function extractHtmlPayload(htmlText) {
   try {
     const doc = new DOMParser().parseFromString(htmlText, "text/html");
     const el = doc.getElementById(HTML_PAYLOAD_ID);
-    if (el) return el.textContent.trim();
+    if (el) {
+      const t = el.textContent.trim();
+      try { const v = JSON.parse(t); if (typeof v === "string") return v; } catch (e) { /* older unquoted artifact */ }
+      return t;
+    }
     const attrEl = doc.querySelector("[data-stegatrix-payload]");
     if (attrEl) return attrEl.getAttribute("data-stegatrix-payload");
   } catch (e) { /* fall through */ }
@@ -1805,23 +1806,6 @@ function downloadText(text, filename, mime) {
   downloadBlob(new Blob([text], { type: mime || "text/plain;charset=utf-8" }), filename);
 }
 
-function exportPngWithPayload() {
-  const payload = getPayload();
-  if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
-  downloadStegoPng(payload);
-}
-function exportHtmlArtifact() {
-  const payload = getPayload();
-  if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
-  downloadHtmlArtifact(payload, "HTML artifact exported.");
-}
-function exportAsciiTxt() {
-  if (!state.asciiText) { toast("No ASCII yet. Upload an image first.", "error"); return; }
-  const payload = getPayload();
-  const content = payload && state.settings.stegoMode === "ascii" ? buildAsciiBlock(payload) : state.asciiText;
-  downloadText(content, `stegatrix-ascii-${timestamp()}.txt`);
-  toast("ASCII TXT exported.", "success");
-}
 function exportPayloadJson() {
   const payload = getPayload();
   if (!payload) { toast("No payload — encrypt a message first.", "error"); return; }
@@ -1920,7 +1904,6 @@ function init() {
     $("colorMode").checked = e.target.value === "color";
     renderAscii();
   });
-  $("debugMode").addEventListener("change", (e) => { work.classList.toggle("show", e.target.checked); });
 
   // --- ASCII actions ---
   $("copyAscii").addEventListener("click", () => {
@@ -2011,8 +1994,5 @@ document.addEventListener("DOMContentLoaded", init);
 })();
 
 </script>
-<!-- Cloudflare Web Analytics -->
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "53006207f3bb48c49efa7f73c8178dae"}'></script>
-<!-- End Cloudflare Web Analytics -->
 </body>
 </html>

@@ -1,189 +1,86 @@
 # Stegatrix
 
-**Image → Encrypt → Hide**
+Hide an encrypted message inside an image, a text file or a web page, entirely in your browser.
 
-Stegatrix is a self-contained, offline, single-file web app that turns an image
-into cyberpunk ASCII art, encrypts a secret message, hides the encrypted payload
-inside a carrier (ASCII text, PNG pixels, HTML, or zero-width characters), and
-recovers it later. Everything runs locally in your browser — no backend, no build
-step, no dependencies, and nothing is ever uploaded.
+**[Live demo](https://stegatrix.cybrsmr.xyz)** · single HTML file · no build step · no dependencies
 
-The UI is a stepped wizard: **Create** (3 steps) or **Recover** (2 steps).
+![Stegatrix home screen](docs/screenshots/hero.png)
 
-![Stegatrix home — Create or Recover](docs/screenshots/hero.png)
+## What it does
 
----
+Stegatrix runs in two directions:
 
-## Table of contents
-
-- [Concept](#concept)
-- [How to run](#how-to-run)
-- [Screenshots](#screenshots)
-- [Features](#features)
-- [Quick start](#quick-start)
-- [Security notes](#security-notes)
-- [Known limitations](#known-limitations)
-- [Future upgrades](#future-upgrades)
-- [Internal format identifiers](#internal-format-identifiers)
-
----
-
-## Concept
-
-The image is a **visual carrier**, not data storage. ASCII conversion is
-intentionally **lossy** — the original image is never reconstructed from ASCII.
-The real data path is:
+- **Create:** pick an image, encrypt a message, then hide the result in a carrier you can send to someone.
+- **Recover:** drop that carrier back in, pull out the payload, and decrypt it.
 
 ```
-Secret message ─▶ Cipher / AES-GCM ─▶ JSON payload ─▶ Stego carrier ─▶ Artifact
-Artifact ─▶ Import ─▶ Decrypt ─▶ Recovered message
+message ──▶ encrypt (AES-256-GCM) ──▶ payload ──▶ carrier ──▶ file you share
+file    ──▶ extract payload       ──▶ decrypt  ──▶ message
 ```
 
-### Create path (3 steps)
+The image also gets converted to ASCII art. That's purely visual: it gives the text and HTML carriers something to look at, and it can't be turned back into the original image.
 
-1. **Image & ASCII** — upload (or load the demo), preview ASCII; tunables sit under *Tune ASCII*.
-2. **Encrypt** — message + cipher mode → encrypted payload.
-3. **Hide & finish** — choose a carrier, hide the payload (PNG/HTML download; ASCII/zero-width copy/save), then recover anytime.
+## Carriers
 
-### Recover path (2 steps)
+| Carrier | Where the payload goes | Survives |
+|---|---|---|
+| **PNG** | Least significant bit of each R, G and B channel, written in pixel order from the top left | Lossless copies only. Re-encoding, resizing, screenshots and most chat apps destroy it. |
+| **ASCII text** | A base64 block under the ASCII art, between `---BEGIN/END STEGATRIX PAYLOAD---` markers | Anywhere plain text survives. It's visible, so this one is a container, not a hiding place. |
+| **HTML page** | A `<script type="application/json" id="stegatrix-payload">` tag in a standalone page | Anywhere a file survives |
+| **Zero-width text** | Bits encoded as U+200B / U+200C after the first word of a cover sentence | Experimental. Many editors, websites and messengers strip these characters. |
 
-1. **Import** — drop or paste a PNG / TXT / HTML artifact and extract the payload.
-2. **Recover** — decrypt with matching mode/password and read the plaintext.
+## Encryption
 
----
+**AES-GCM** is the only mode that protects anything:
 
-## How to run
+- The key comes from your password via PBKDF2-HMAC-SHA256 (600,000 iterations by default, per OWASP guidance; imported payloads are capped at 2,000,000 so a crafted file can't freeze the tab), giving a 256-bit AES-GCM key.
+- Each message gets a random 16-byte salt and a random 12-byte IV from `crypto.getRandomValues`.
+- Everything uses the browser's Web Crypto API. There's no hand-rolled crypto.
+- GCM authenticates the ciphertext, so a wrong password or a tampered payload fails instead of returning garbage.
 
-No install, no server, no build.
+Base64, Caesar, Atbash, Vigenère and XOR are also included, as puzzle modes. They're labelled as insecure in the UI and they are. Use them for CTF-style puzzles, not secrets.
 
-1. Download `index.html`.
-2. Open it in any modern browser (Chrome, Edge, Firefox, Safari) — double-click or drag it into a tab.
+## Threat model
 
-That's it. The entire app (HTML + CSS + JS) lives in that one file.
+Read this before trusting Stegatrix with anything.
 
-> AES-GCM uses the browser's Web Crypto API, which is available on `file://`, `http://localhost`, and any `https://` origin.
+**What it protects:** the *content* of an AES-GCM message, as long as the password is strong. Someone who gets the file can't read the message without the password.
 
-Live demo: [stegatrix.cybrsmr.xyz](https://stegatrix.cybrsmr.xyz) · Source: [github.com/atahan99/Stegatrix](https://github.com/atahan99/Stegatrix)
+**What it doesn't protect:**
 
----
+- **The fact that a message exists.** Payloads start with a fixed marker (`STGTRX1` in PNGs) and the AES envelope is plain JSON that includes `"app": "STEGATRIX"`. Anyone who knows to look for Stegatrix can confirm a payload is there. Sequential LSB embedding can also be picked up by standard steganalysis (chi-square, RS analysis). Treat the carriers as a fun container, not covert communication.
+- **Metadata.** The envelope stores a `createdAt` timestamp, and the ciphertext length gives away the message length.
+- **Weak passwords.** There's no strength check, and PBKDF2 slows down offline guessing without stopping it.
+- **A compromised browser or device.** The plaintext and password sit in the page's memory and DOM while you use it.
 
-## Screenshots
+## Privacy
 
-**Create step 1 — Image & ASCII (demo image + neon preview)**
+Encryption, embedding and extraction all happen locally. Your images, messages and passwords are never sent anywhere.
 
-![Create step 1: Image and ASCII with demo synthwave image](docs/screenshots/create-image.png)
+The page loads no third-party scripts, has no analytics and makes no network requests after it loads. The `_headers` CSP enforces that on the hosted demo. Saved as a file, it runs fully offline.
 
-**Create step 2 — Encrypt (AES-GCM payload ready to hide)**
+## Run it locally
 
-![Create step 2: Encrypt with AES-GCM and encrypted JSON payload](docs/screenshots/create-encrypt.png)
+```bash
+git clone https://github.com/atahan99/Stegatrix.git
+```
 
-**Create step 3 — Hide & finish (ASCII carrier + Recover CTA)**
+Open `index.html` in any modern browser. Web Crypto works on `file://`, `localhost` and HTTPS, so you don't need a server.
 
-![Create step 3: Hide and finish with stego output and recover button](docs/screenshots/create-hide.png)
+## Project layout
 
-**Recover step 2 — decrypted plaintext**
+```
+index.html        the whole app: markup, styles and script
+_headers          security headers for Cloudflare Pages (CSP, frame and referrer policy)
+favicon.svg
+docs/screenshots/
+```
 
-![Recover step 2: Recover message showing plaintext](docs/screenshots/recover.png)
+## Known issues
 
----
+- **Transparent PNGs:** pixels that carry payload bits are made fully opaque, because browsers store canvas pixels with premultiplied alpha and would round the hidden bits away. Transparent areas of the carrier can turn visible.
+- **Fingerprinting protection:** browsers that add noise to canvas reads (Brave, or Firefox with `resistFingerprinting`) break PNG embedding and extraction.
 
-## Features
+## License
 
-### Wizard navigation
-- Home path cards: **Create** or **Recover**.
-- Live step strip; **Next** unlocks only after that step’s action.
-- Title click / **Start over** returns home.
-- Debug canvas toggle stays in the header; About / Limits stays in the footer.
-
-### Image → ASCII
-- Drag-and-drop or click-to-browse upload, plus a built-in **Load demo image**.
-- Controls (under *Tune ASCII*): ASCII width (40–240), brightness, contrast, invert, color mode, font size, line height, charset, render theme.
-- Character sets: **Dense**, **Blocks**, **Binary**, **Cyber**, **Minimal**, or **Custom**.
-- Render themes: **monochrome neon**, **color (pixel color)**, **amber terminal**, **matrix green**, **magenta/cyan split glow**.
-- Copy ASCII, download `.txt`, or export the ASCII art as a PNG raster.
-- Optional debug view of the sampling canvas.
-
-### Encrypt
-- **None / Base64 wrapper** — encoding only, not encryption.
-- **Caesar**, **Atbash**, **Vigenère**, **XOR** — *puzzle / aesthetic ciphers, clearly labelled not secure*.
-- **AES-GCM** — *secure mode*: PBKDF2-SHA256 key derivation (default 250,000 iterations), 256-bit key, random 16-byte salt, random 12-byte IV.
-- AES payload is a JSON object: `app, version, type, kdf, hash, iterations, salt, iv, ciphertext, createdAt`.
-- Password show/hide toggle, live payload byte-size readout, and one-click copy on every output.
-
-### Hide & finish
-- **ASCII text block** — appends a `---BEGIN/END STEGATRIX PAYLOAD---` block below the art (Copy or Save `.txt`).
-- **PNG (hidden in image)** — LSB embed; magic `STGTRX1` + length + UTF-8 payload; live capacity estimator; downloads a PNG.
-- **HTML page (self-contained)** — downloads a page with ASCII plus `<script type="application/json" id="stegatrix-payload">`.
-- **Zero-width text** (experimental) — invisible characters inside a cover sentence.
-- After a successful hide: finish strip with **Recover an artifact**, plus *Advanced exports* (payload JSON, README/instructions TXT).
-
-### Import / Recover
-- Import a **PNG / TXT / HTML** file, **or paste artifact text**.
-- Auto-detects the carrier: HTML script tag, ASCII block, zero-width data, or PNG LSB.
-- Next unlocks after extract; decrypt with matching mode/password on the Recover step.
-
----
-
-## Quick start
-
-1. Open the app → choose **Create**.
-2. Click **Load demo image** (or drop your own), then **Next**.
-3. Type a message, pick **AES-GCM (secure)**, enter a password, click **Encrypt**, then **Next**.
-4. Choose a hide mode and click **Hide payload** (PNG/HTML download instantly; ASCII/zero-width appear in the output — use Copy or Save `.txt`).
-5. To recover: **Recover an artifact** (or home → **Recover**), import the file or paste text, **Next**, set the matching decode mode/password, click **Recover message**.
-
----
-
-## Security notes
-
-- **ASCII conversion is lossy and visual only.** You cannot rebuild the image from ASCII.
-- **Classical ciphers (Caesar, Atbash, Vigenère, XOR) are puzzles, not security.**
-- **AES-GCM is the secure option.** Use a strong, unique password.
-- **LSB steganography is fragile.** It survives only lossless PNG. JPEG/WebP re-encoding, resizing, screenshots, and most social-media uploads will destroy the hidden bits.
-- **Zero-width stego is experimental** and is often stripped by websites, editors, and messengers.
-- **All processing happens locally in your browser.** No network requests, no uploads.
-
----
-
-## Known limitations
-
-- Very large images are capped during ASCII sampling to keep the browser responsive.
-- PNG LSB capacity depends on image resolution; large AES payloads need larger images.
-- Zero-width payloads can be silently removed by many text surfaces.
-- Color ASCII uses one `<span>` per character, so extremely wide outputs are heavier to render.
-
----
-
-## Future upgrades
-
-- Optional payload compression before embedding.
-- Password strength meter and configurable KDF presets.
-- Error-correction coding for more robust LSB.
-- Additional carriers (audio, SVG metadata).
-
----
-
-## Internal format identifiers
-
-These constants are used identically on the write and read paths, so artifacts round-trip cleanly.
-
-| Purpose             | Value                               |
-|---------------------|-------------------------------------|
-| PNG magic header    | `STGTRX1`                           |
-| ASCII block markers | `---BEGIN/END STEGATRIX PAYLOAD---` |
-| HTML payload id     | `stegatrix-payload`                 |
-| Payload `app` field | `STEGATRIX`                         |
-
----
-
-## Verified flows
-
-All core flows were tested end-to-end in a real browser:
-
-- Wizard gates: Create Next locked until image/encrypt; Recover Next locked until extract.
-- Base64 / Caesar / Atbash / Vigenère / XOR / AES-GCM encrypt + decrypt round-trips.
-- AES-GCM fails cleanly with the wrong password.
-- Image → ASCII across character sets and every render theme.
-- Hide → import → decrypt for all four carriers (ASCII block, PNG LSB, HTML, zero-width).
-- PNG LSB capacity estimator and over-capacity warning.
-- Paste-to-decode and Save `.txt` from the Stego output.
+No license file yet. All rights reserved until one is added.
