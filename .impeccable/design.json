@@ -1,0 +1,458 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T00:00:00Z",
+  "title": "Design System: Stegatrix",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Violet Black",
+        "canonical": "#07030f",
+        "tonalRamp": [
+          "oklch(15% 0.033 301.1)",
+          "oklch(26% 0.033 301.1)",
+          "oklch(38% 0.033 301.1)",
+          "oklch(50% 0.033 301.1)",
+          "oklch(62% 0.033 301.1)",
+          "oklch(74% 0.033 301.1)",
+          "oklch(85% 0.033 301.1)",
+          "oklch(95% 0.033 301.1)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Night Violet",
+        "canonical": "#0e0a1b",
+        "tonalRamp": [
+          "oklch(15% 0.035 292.8)",
+          "oklch(26% 0.035 292.8)",
+          "oklch(38% 0.035 292.8)",
+          "oklch(50% 0.035 292.8)",
+          "oklch(62% 0.035 292.8)",
+          "oklch(74% 0.035 292.8)",
+          "oklch(85% 0.035 292.8)",
+          "oklch(95% 0.035 292.8)"
+        ]
+      },
+      "surface-2": {
+        "role": "neutral",
+        "displayName": "Raised Violet",
+        "canonical": "#15102a",
+        "tonalRamp": [
+          "oklch(15% 0.051 289.7)",
+          "oklch(26% 0.051 289.7)",
+          "oklch(38% 0.051 289.7)",
+          "oklch(50% 0.051 289.7)",
+          "oklch(62% 0.051 289.7)",
+          "oklch(74% 0.051 289.7)",
+          "oklch(85% 0.051 289.7)",
+          "oklch(95% 0.051 289.7)"
+        ]
+      },
+      "void": {
+        "role": "neutral",
+        "displayName": "Void",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "oklch(15% 0.000 0.0)",
+          "oklch(26% 0.000 0.0)",
+          "oklch(38% 0.000 0.0)",
+          "oklch(50% 0.000 0.0)",
+          "oklch(62% 0.000 0.0)",
+          "oklch(74% 0.000 0.0)",
+          "oklch(85% 0.000 0.0)",
+          "oklch(95% 0.000 0.0)"
+        ]
+      },
+      "cyan": {
+        "role": "primary",
+        "displayName": "Interface Cyan",
+        "canonical": "#00f5ff",
+        "tonalRamp": [
+          "oklch(15% 0.150 200.1)",
+          "oklch(26% 0.150 200.1)",
+          "oklch(38% 0.150 200.1)",
+          "oklch(50% 0.150 200.1)",
+          "oklch(62% 0.150 200.1)",
+          "oklch(74% 0.150 200.1)",
+          "oklch(85% 0.150 200.1)",
+          "oklch(95% 0.150 200.1)"
+        ]
+      },
+      "cyan-hover": {
+        "role": "primary",
+        "displayName": "Pale Cyan",
+        "canonical": "#7ffaff",
+        "tonalRamp": [
+          "oklch(15% 0.111 198.9)",
+          "oklch(26% 0.111 198.9)",
+          "oklch(38% 0.111 198.9)",
+          "oklch(50% 0.111 198.9)",
+          "oklch(62% 0.111 198.9)",
+          "oklch(74% 0.111 198.9)",
+          "oklch(85% 0.111 198.9)",
+          "oklch(95% 0.111 198.9)"
+        ]
+      },
+      "magenta": {
+        "role": "secondary",
+        "displayName": "Hidden-Data Magenta",
+        "canonical": "#ff2bd6",
+        "tonalRamp": [
+          "oklch(15% 0.282 338.1)",
+          "oklch(26% 0.282 338.1)",
+          "oklch(38% 0.282 338.1)",
+          "oklch(50% 0.282 338.1)",
+          "oklch(62% 0.282 338.1)",
+          "oklch(74% 0.282 338.1)",
+          "oklch(85% 0.282 338.1)",
+          "oklch(95% 0.282 338.1)"
+        ]
+      },
+      "magenta-hover": {
+        "role": "secondary",
+        "displayName": "Pale Magenta",
+        "canonical": "#ff7ae6",
+        "tonalRamp": [
+          "oklch(15% 0.203 335.1)",
+          "oklch(26% 0.203 335.1)",
+          "oklch(38% 0.203 335.1)",
+          "oklch(50% 0.203 335.1)",
+          "oklch(62% 0.203 335.1)",
+          "oklch(74% 0.203 335.1)",
+          "oklch(85% 0.203 335.1)",
+          "oklch(95% 0.203 335.1)"
+        ]
+      },
+      "green": {
+        "role": "tertiary",
+        "displayName": "Success Green",
+        "canonical": "#39ff14",
+        "tonalRamp": [
+          "oklch(15% 0.286 141.5)",
+          "oklch(26% 0.286 141.5)",
+          "oklch(38% 0.286 141.5)",
+          "oklch(50% 0.286 141.5)",
+          "oklch(62% 0.286 141.5)",
+          "oklch(74% 0.286 141.5)",
+          "oklch(85% 0.286 141.5)",
+          "oklch(95% 0.286 141.5)"
+        ]
+      },
+      "amber": {
+        "role": "tertiary",
+        "displayName": "Warning Amber",
+        "canonical": "#ffbf00",
+        "tonalRamp": [
+          "oklch(15% 0.172 84.1)",
+          "oklch(26% 0.172 84.1)",
+          "oklch(38% 0.172 84.1)",
+          "oklch(50% 0.172 84.1)",
+          "oklch(62% 0.172 84.1)",
+          "oklch(74% 0.172 84.1)",
+          "oklch(85% 0.172 84.1)",
+          "oklch(95% 0.172 84.1)"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Error Rose",
+        "canonical": "#ff5c7a",
+        "tonalRamp": [
+          "oklch(15% 0.198 12.9)",
+          "oklch(26% 0.198 12.9)",
+          "oklch(38% 0.198 12.9)",
+          "oklch(50% 0.198 12.9)",
+          "oklch(62% 0.198 12.9)",
+          "oklch(74% 0.198 12.9)",
+          "oklch(85% 0.198 12.9)",
+          "oklch(95% 0.198 12.9)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ice White",
+        "canonical": "#e9f8ff",
+        "tonalRamp": [
+          "oklch(15% 0.018 227.3)",
+          "oklch(26% 0.018 227.3)",
+          "oklch(38% 0.018 227.3)",
+          "oklch(50% 0.018 227.3)",
+          "oklch(62% 0.018 227.3)",
+          "oklch(74% 0.018 227.3)",
+          "oklch(85% 0.018 227.3)",
+          "oklch(95% 0.018 227.3)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Slate Mist",
+        "canonical": "#9fb0c3",
+        "tonalRamp": [
+          "oklch(15% 0.033 251.2)",
+          "oklch(26% 0.033 251.2)",
+          "oklch(38% 0.033 251.2)",
+          "oklch(50% 0.033 251.2)",
+          "oklch(62% 0.033 251.2)",
+          "oklch(74% 0.033 251.2)",
+          "oklch(85% 0.033 251.2)",
+          "oklch(95% 0.033 251.2)"
+        ]
+      },
+      "on-accent": {
+        "role": "neutral",
+        "displayName": "On-Accent Violet Black",
+        "canonical": "#07030f",
+        "tonalRamp": [
+          "oklch(15% 0.033 301.1)",
+          "oklch(26% 0.033 301.1)",
+          "oklch(38% 0.033 301.1)",
+          "oklch(50% 0.033 301.1)",
+          "oklch(62% 0.033 301.1)",
+          "oklch(74% 0.033 301.1)",
+          "oklch(85% 0.033 301.1)",
+          "oklch(95% 0.033 301.1)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Cyan Hairline",
+        "canonical": "rgba(0,245,255,0.16)"
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Hairline",
+        "canonical": "rgba(0,245,255,0.42)"
+      }
+    },
+    "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "Header wordmark only; carries the one brand glow."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home hero H1; 26px under 560px."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Wizard step headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Prose; muted support copy capped at 44 to 72ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels and summaries; buttons at 15px."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Passwords, payloads, outputs, counts; 13 to 14px."
+      }
+    },
+    "shadows": [
+      {
+        "name": "glow-brand",
+        "value": "0 0 10px rgba(0,245,255,0.45)",
+        "purpose": "text-shadow on the wordmark only."
+      },
+      {
+        "name": "glow-data",
+        "value": "0 0 14px rgba(255,43,214,0.55)",
+        "purpose": "Revealed hidden data at rest."
+      },
+      {
+        "name": "glow-focus",
+        "value": "0 0 0 3px rgba(0,245,255,0.28)",
+        "purpose": "Focus ring, paired with a 2px cyan outline at 2px offset."
+      },
+      {
+        "name": "glow-step",
+        "value": "0 0 12px rgba(0,245,255,0.25)",
+        "purpose": "Active wizard step chip."
+      },
+      {
+        "name": "glow-art",
+        "value": "0 0 6px currentColor",
+        "purpose": "text-shadow on user ASCII output."
+      },
+      {
+        "name": "toast-lift",
+        "value": "0 8px 24px rgba(0,0,0,0.5)",
+        "purpose": "Toasts only; dark lift, not a glow."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "All CSS transitions and keyframes."
+      },
+      {
+        "name": "control-transition",
+        "value": "150ms",
+        "purpose": "Buttons, fields, dropzone hover."
+      },
+      {
+        "name": "switch-transition",
+        "value": "200ms",
+        "purpose": "View-switch segments and disclosure chevrons."
+      },
+      {
+        "name": "toast-in",
+        "value": "250ms",
+        "purpose": "Toast slide-in, 8px rise."
+      },
+      {
+        "name": "reveal-bloom",
+        "value": "900ms",
+        "purpose": "One magenta bloom when hidden data is revealed."
+      },
+      {
+        "name": "view-wipe",
+        "value": "420ms cubic ease-out",
+        "purpose": "Hero view change: canvas wipe led by a 3px cyan scan line; instant under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack",
+        "value": "860px"
+      },
+      {
+        "name": "phone",
+        "value": "560px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Cyan fill; one per decision.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Hide your own message</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:600;padding:10px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--line-strong,rgba(0,245,255,0.42));background:rgba(0,245,255,0.06);color:var(--cyan,#00f5ff);transition:background .15s cubic-bezier(0.16,1,0.3,1),border-color .15s cubic-bezier(0.16,1,0.3,1),transform .15s cubic-bezier(0.16,1,0.3,1);} .ds-btn:active{transform:translateY(1px);} .ds-btn:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);} .ds-btn-primary{background:var(--cyan,#00f5ff);border-color:var(--cyan,#00f5ff);color:var(--on-accent,#07030f);} .ds-btn-primary:hover{background:#7ffaff;}"
+    },
+    {
+      "name": "Reveal Button",
+      "kind": "button",
+      "refersTo": "button-reveal",
+      "description": "Magenta fill; only for exposing hidden data.",
+      "html": "<button class=\"ds-btn ds-btn-reveal\">Reveal the message</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:600;padding:10px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--line-strong,rgba(0,245,255,0.42));background:rgba(0,245,255,0.06);color:var(--cyan,#00f5ff);transition:background .15s cubic-bezier(0.16,1,0.3,1),border-color .15s cubic-bezier(0.16,1,0.3,1),transform .15s cubic-bezier(0.16,1,0.3,1);} .ds-btn:active{transform:translateY(1px);} .ds-btn:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);} .ds-btn-reveal{background:var(--magenta,#ff2bd6);border-color:var(--magenta,#ff2bd6);color:var(--on-accent,#07030f);} .ds-btn-reveal:hover{background:#ff7ae6;}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Cyan-tinted outline button for alternate actions.",
+      "html": "<button class=\"ds-btn\">Recover a message</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:600;padding:10px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--line-strong,rgba(0,245,255,0.42));background:rgba(0,245,255,0.06);color:var(--cyan,#00f5ff);transition:background .15s cubic-bezier(0.16,1,0.3,1),border-color .15s cubic-bezier(0.16,1,0.3,1),transform .15s cubic-bezier(0.16,1,0.3,1);} .ds-btn:active{transform:translateY(1px);} .ds-btn:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);} .ds-btn:hover{background:rgba(0,245,255,0.14);border-color:var(--cyan,#00f5ff);}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Transparent slate-outline button for low-emphasis actions.",
+      "html": "<button class=\"ds-btn ds-btn-ghost\">Back</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:600;padding:10px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--line-strong,rgba(0,245,255,0.42));background:rgba(0,245,255,0.06);color:var(--cyan,#00f5ff);transition:background .15s cubic-bezier(0.16,1,0.3,1),border-color .15s cubic-bezier(0.16,1,0.3,1),transform .15s cubic-bezier(0.16,1,0.3,1);} .ds-btn:active{transform:translateY(1px);} .ds-btn:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);} .ds-btn-ghost{border-color:rgba(159,176,195,0.45);color:var(--text,#e9f8ff);background:transparent;} .ds-btn-ghost:hover{border-color:var(--text,#e9f8ff);}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Dark-well field with cyan hairline; passwords in mono.",
+      "html": "<label class=\"ds-label\">Password<input class=\"ds-input\" type=\"text\" value=\"neon-lantern-42\"></label>",
+      "css": ".ds-label{display:block;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;font-weight:600;color:var(--text,#e9f8ff);} .ds-input{display:block;margin-top:6px;width:100%;box-sizing:border-box;min-height:44px;background:rgba(0,0,0,0.35);border:1px solid var(--line,rgba(0,245,255,0.16));border-radius:9px;color:var(--text,#e9f8ff);padding:10px 12px;font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace;font-size:15px;transition:border-color .15s cubic-bezier(0.16,1,0.3,1);} .ds-input:hover{border-color:var(--line-strong,rgba(0,245,255,0.42));} .ds-input:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);}"
+    },
+    {
+      "name": "Step Bar",
+      "kind": "nav",
+      "refersTo": "step-chip",
+      "description": "Wizard progress: done (green), active (cyan, glowing), upcoming (muted).",
+      "html": "<nav class=\"ds-steps\"><button class=\"ds-step ds-done\"><b>1</b>Image</button><span class=\"ds-arrow\"></span><span class=\"ds-step ds-active\"><b>2</b>Encrypt</span><span class=\"ds-arrow\"></span><span class=\"ds-step\"><b>3</b>Hide</span></nav>",
+      "css": ".ds-steps{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} .ds-step{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:var(--muted,#9fb0c3);border:1px solid var(--line,rgba(0,245,255,0.16));border-radius:999px;padding:4px 14px 4px 6px;background:transparent;} .ds-step b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--surface-2,#15102a);color:var(--muted,#9fb0c3);font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace;font-size:12px;} .ds-active{color:var(--text,#e9f8ff);border-color:var(--cyan,#00f5ff);box-shadow:0 0 12px rgba(0,245,255,0.25);} .ds-active b{background:var(--cyan,#00f5ff);color:var(--on-accent,#07030f);} .ds-done{color:var(--text,#e9f8ff);cursor:pointer;} .ds-done b{background:var(--green,#39ff14);color:var(--on-accent,#07030f);} .ds-done:hover{border-color:var(--green,#39ff14);} .ds-done:focus-visible{outline:2px solid var(--cyan,#00f5ff);outline-offset:2px;box-shadow:0 0 0 3px rgba(0,245,255,0.28);} .ds-arrow{width:7px;height:7px;border-right:2px solid var(--muted,#9fb0c3);border-bottom:2px solid var(--muted,#9fb0c3);transform:rotate(-45deg);margin:0 4px;}"
+    },
+    {
+      "name": "View Switch",
+      "kind": "chip",
+      "refersTo": "view-switch-segment",
+      "description": "Pill segmented control for the hero viewer; Changes turns magenta.",
+      "html": "<div class=\"ds-switch\" role=\"radiogroup\"><label><input type=\"radio\" name=\"ds-v\" checked><span>Image</span></label><label><input type=\"radio\" name=\"ds-v\"><span>LSB plane</span></label><label><input type=\"radio\" name=\"ds-v\" class=\"ds-chg\"><span>Changes</span></label></div>",
+      "css": ".ds-switch{display:flex;gap:4px;padding:4px;border:1px solid var(--line,rgba(0,245,255,0.16));border-radius:999px;width:max-content;} .ds-switch input{position:absolute;opacity:0;pointer-events:none;} .ds-switch span{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:14px;color:var(--muted,#9fb0c3);cursor:pointer;transition:color .2s cubic-bezier(0.16,1,0.3,1),background .2s cubic-bezier(0.16,1,0.3,1);} .ds-switch input:checked+span{background:var(--surface-2,#15102a);color:var(--text,#e9f8ff);box-shadow:inset 0 0 0 1px var(--line-strong,rgba(0,245,255,0.42));} .ds-switch input.ds-chg:checked+span{color:var(--magenta,#ff2bd6);box-shadow:inset 0 0 0 1px rgba(255,43,214,0.55);} .ds-switch input:focus-visible+span{box-shadow:0 0 0 3px rgba(0,245,255,0.28);}"
+    },
+    {
+      "name": "Step Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat hairline panel with a Geist step heading.",
+      "html": "<section class=\"ds-panel\"><h2 class=\"ds-panel-head\">Encrypt</h2><div class=\"ds-panel-body\">Choose a password. AES-GCM is the default.</div></section>",
+      "css": ".ds-panel{background:var(--surface,#0e0a1b);border:1px solid var(--line,rgba(0,245,255,0.16));border-radius:12px;overflow:hidden;color:var(--text,#e9f8ff);font-family:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:16px;line-height:1.55;} .ds-panel-head{margin:0;padding:16px 20px 0;font-family:'Geist',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:20px;font-weight:700;line-height:1.15;} .ds-panel-body{padding:16px 20px 20px;}"
+    },
+    {
+      "name": "Revealed Message",
+      "kind": "custom",
+      "refersTo": "data-output",
+      "description": "Hidden data once revealed: magenta border and data glow after one bloom.",
+      "html": "<div class=\"ds-secret\">meet at the third lantern</div>",
+      "css": ".ds-secret{padding:14px;border-radius:10px;border:1px solid var(--magenta,#ff2bd6);color:var(--text,#e9f8ff);font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace;font-size:14px;white-space:pre-wrap;box-shadow:0 0 14px rgba(255,43,214,0.55);animation:ds-bloom .9s cubic-bezier(0.16,1,0.3,1);} @keyframes ds-bloom{from{box-shadow:0 0 0 rgba(255,43,214,0),0 0 48px rgba(255,43,214,0.8);color:var(--magenta,#ff2bd6);}to{box-shadow:0 0 14px rgba(255,43,214,0.55);}} @media (prefers-reduced-motion:reduce){.ds-secret{animation:none;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Lit Sign in a Dark Lab",
+    "overview": "Stegatrix is a neon world pinned by the user and then disciplined: a near-black violet ground, flat hairline-bordered panels, and a small set of saturated neon colors that each carry exactly one meaning. The wordmark is the neon sign over the door; everything else in the room is quiet until something real happens. Glow is a signal, not a finish. It appears on the wordmark, on hidden data when it is revealed, on keyboard focus, on the active wizard step, and on the user's own ASCII art output. Nowhere else.\n\nDensity is moderate and tool-like. A single 1120px column holds a two-area hero (image viewer beside a reveal panel) and a stepped wizard of flat panels. The interface proves its mechanism by showing it, so the canvas viewer and the monospace data surfaces are the most important things on screen, and chrome stays out of their way.\n\nThe world refuses the neon-template habit of glowing every surface: panels, buttons and fields sit flat at rest, and hierarchy comes from color role and hairline weight rather than light.",
+    "keyCharacteristics": [
+      "Near-black violet ground with two very faint corner washes (cyan top right, magenta bottom left).",
+      "One job per color: cyan interface, magenta hidden data, green success, amber warnings, rose-red errors.",
+      "Glow only on the wordmark, revealed data, focus, the active step, and user ASCII art.",
+      "Geist Bold for display text only; system sans for prose and controls; system monospace for data.",
+      "Flat, hairline-bordered panels; no nested cards; 44px minimum targets.",
+      "Drawn CSS chevrons instead of glyph icons."
+    ],
+    "rules": [
+      {
+        "name": "The One Job Rule",
+        "body": "Each neon color means one thing. Cyan is interface, magenta is hidden data, green is success, amber is warning, rose is error. A color never borrows another's meaning, and a state never appears in a color it does not own.",
+        "section": "colors"
+      },
+      {
+        "name": "The Magenta Is Secret Rule",
+        "body": "As a foreground or border, magenta appears only on hidden data or the control that reveals it. Its single non-data appearance is the 6% ambient wash in the bottom-left corner of the page ground.",
+        "section": "colors"
+      },
+      {
+        "name": "The Three Voices Rule",
+        "body": "Geist Bold speaks only in the wordmark, the hero H1 and step headings. System sans carries prose and controls. Monospace means \"this is data\". Never set prose in mono or data in sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Weight Rule",
+        "body": "Only Geist 700 is shipped. Do not request other Geist weights; a lighter display needs a new face file and a deliberate decision.",
+        "section": "typography"
+      },
+      {
+        "name": "The Glow Is a Signal Rule",
+        "body": "If something glows, it is the brand sign, hidden data, focus, the current step, or the user's art. Panels, buttons and fields never glow at rest or on hover.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do give every neon color one meaning: cyan interface, magenta hidden data, green success, amber warnings, rose errors.",
+      "Do keep panels flat on the Night Violet surface with a 1px cyan hairline and 12px corners.",
+      "Do reserve glow for the wordmark, revealed data, focus, the active step and user ASCII art.",
+      "Do set the wordmark, hero H1 and step headings in Geist Bold, prose and controls in system sans, and all data in monospace.",
+      "Do make every target at least 44px tall and pair every focus state with the 2px cyan outline and 3px ring.",
+      "Do draw directional marks as rotated bordered squares in CSS.",
+      "Do make every animation instant or absent under prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't glow panels, buttons or fields at rest or on hover.",
+      "Don't use magenta for interface chrome, or green, amber or rose outside their states.",
+      "Don't nest a card inside a panel.",
+      "Don't use type glyphs or emoji as icons; inline SVG is reserved for real logos.",
+      "Don't set Geist on prose, labels or controls, or load additional Geist weights without a decision."
+    ]
+  }
+}

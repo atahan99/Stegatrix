@@ -6,7 +6,9 @@ Hide an encrypted message inside an image, a text file or a web page, entirely i
 
 **[Live demo](https://stegatrix.cybrsmr.xyz)** · plain HTML and JS · no build step · no dependencies
 
-![Stegatrix home screen](docs/screenshots/hero.png)
+![Stegatrix home: the Changes view marks the pixels that carry a hidden message, and the message is revealed with the demo password](docs/screenshots/hero.jpg)
+
+The home page hides a real message in a demo image every time it loads. Switch between the image, its LSB plane and the changed pixels, then reveal the message with the password shown on the page.
 
 ## What it does
 
@@ -79,6 +81,12 @@ Encryption, embedding and extraction all happen locally. Your images, messages a
 
 The page loads no third-party scripts, has no analytics and makes no network requests after it loads. The `_headers` CSP enforces that on the hosted demo. Saved as a file, it runs fully offline.
 
+## Screenshots
+
+| Encrypt step | Phone |
+|---|---|
+| ![Encrypt step with an AES-GCM envelope ready to hide](docs/screenshots/encrypt.jpg) | ![Home page on a phone](docs/screenshots/mobile.jpg) |
+
 ## Run it locally
 
 ```bash
@@ -98,11 +106,12 @@ Node 20 or newer, no install. The tests round-trip every cipher and carrier, and
 ## Project layout
 
 ```
-index.html        UI: markup, styles and browser glue (canvas, files, wizard)
+index.html        UI: markup, styles and browser glue (canvas, files, wizard, home demo)
 core.js           pure cipher and stego functions, shared with the tests
 tests/            node --test suite
 _headers          security headers for Cloudflare Pages (CSP, frame and referrer policy)
 favicon.svg
+fonts/            Geist Bold, self-hosted (SIL Open Font License)
 docs/screenshots/
 ```
 

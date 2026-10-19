@@ -4,455 +4,357 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-<title>Stegatrix — Image → Encrypt → Hide</title>
+<link rel="preload" href="fonts/geist-sans-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+<title>Stegatrix — hide encrypted messages in images</title>
+<meta name="description" content="Hide an AES-encrypted message inside an image, text or web page, entirely in your browser." />
 <style>
-/* Stegatrix — cyberpunk neon / synthwave / hacker terminal */
+/* Geist Bold (SIL OFL, fonts/OFL-Geist.txt): one face for display text, identical on every device. */
+@font-face{font-family:"Geist";src:url("fonts/geist-sans-latin-700-normal.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+
+/* Stegatrix: neon on near-black. Color has one job each, and glow means "hidden data, focus, or now". */
 :root{
-  --bg:#05000f;
-  --panel:rgba(15,10,35,0.72);
-  --cyan:#00f5ff;
-  --magenta:#ff2bd6;
-  --green:#39ff14;
-  --amber:#ffbf00;
-  --text:#e7faff;
-  --muted:#91a4b7;
-  --danger:#ff4d6d;
-  --border:rgba(0,245,255,0.28);
-  --radius:14px;
-  --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,"Courier New",monospace;
+  --bg:#07030f;
+  --surface:#0e0a1b;
+  --surface-2:#15102a;
+  --line:rgba(0,245,255,0.16);
+  --line-strong:rgba(0,245,255,0.42);
+  --cyan:#00f5ff;          /* interface */
+  --magenta:#ff2bd6;       /* hidden data only */
+  --green:#39ff14;         /* success only */
+  --amber:#ffbf00;         /* warnings only */
+  --danger:#ff5c7a;
+  --text:#e9f8ff;
+  --muted:#9fb0c3;
+  --on-accent:#07030f;
+  --radius:12px;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --display:"Geist",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,"Liberation Mono",monospace;
+  --glow-data:0 0 14px rgba(255,43,214,0.55);
+  --glow-focus:0 0 0 3px rgba(0,245,255,0.28);
+  --ease:cubic-bezier(0.16,1,0.3,1);
 }
 
 *{box-sizing:border-box}
-
+[hidden]{display:none !important}
 html,body{margin:0;padding:0}
-
+html{color-scheme:dark;scrollbar-color:var(--line-strong) var(--bg)}
 body{
-  background:var(--bg);
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(900px 520px at 85% -10%, rgba(0,245,255,0.07), transparent 60%),
+    radial-gradient(800px 520px at 0% 110%, rgba(255,43,214,0.06), transparent 60%);
+  background-attachment:fixed;
   color:var(--text);
-  font-family:var(--mono);
-  font-size:15px;
-  line-height:1.5;
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.55;
   min-height:100vh;
-  position:relative;
   overflow-x:hidden;
+  caret-color:var(--cyan);
 }
+::selection{background:var(--cyan);color:var(--on-accent)}
+a{color:var(--cyan);text-underline-offset:3px}
+h1,h2,h3{line-height:1.15;margin:0;text-wrap:balance}
+p{margin:0}
 
-/* Fixed layered background: radial glows + starfield noise */
-body::before{
-  content:"";
-  position:fixed;
-  inset:0;
-  z-index:-2;
-  background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(255,43,214,0.18), transparent 60%),
-    radial-gradient(1100px 800px at 100% 0%, rgba(0,245,255,0.16), transparent 55%),
-    radial-gradient(900px 900px at 50% 120%, rgba(57,255,20,0.10), transparent 60%),
-    var(--bg);
-}
-
-/* Scanlines overlay */
-body::after{
-  content:"";
-  position:fixed;
-  inset:0;
-  z-index:-1;
-  pointer-events:none;
-  background:repeating-linear-gradient(
-    to bottom,
-    rgba(255,255,255,0.03) 0px,
-    rgba(255,255,255,0.03) 1px,
-    transparent 2px,
-    transparent 4px);
-  mix-blend-mode:overlay;
-  opacity:0.5;
-}
-
-a{color:var(--cyan)}
-
-.wrap{max-width:820px;margin:0 auto;padding:24px 20px 80px}
+.wrap{max-width:1120px;margin:0 auto;padding:20px 20px 64px}
 
 /* ---------- Header ---------- */
-header.app{
-  text-align:center;
-  padding:22px 12px 10px;
-  position:relative;
+header.app{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding:4px 0 18px;border-bottom:1px solid var(--line)}
+.wordmark{
+  font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:0.14em;
+  color:var(--cyan);background:none;border:0;padding:0;cursor:pointer;min-height:44px;
+  text-shadow:0 0 10px rgba(0,245,255,0.45); /* the one brand glow: it's the neon sign */
 }
-.title{
-  font-size:clamp(34px,7vw,72px);
-  font-weight:800;
-  letter-spacing:6px;
-  margin:0;
-  position:relative;
-  display:inline-block;
-  color:var(--text);
-  animation:neonPulse 5s ease-in-out infinite;
-  cursor:pointer;
-}
-/* Soft chromatic-aberration layers that drift gently — no harsh clipping */
-.title::before,.title::after{
-  content:attr(data-text);
-  position:absolute;
-  left:0;top:0;
-  width:100%;
-  pointer-events:none;
-}
-.title::before{color:var(--magenta);opacity:0.28;animation:driftMagenta 8s ease-in-out infinite;}
-.title::after{color:var(--cyan);opacity:0.28;animation:driftCyan 8s ease-in-out infinite;}
-@keyframes neonPulse{
-  0%,100%{text-shadow:0 0 7px rgba(0,245,255,0.55),0 0 18px rgba(0,245,255,0.35);}
-  50%{text-shadow:0 0 11px rgba(0,245,255,0.75),0 0 26px rgba(0,245,255,0.5);}
-}
-@keyframes driftMagenta{
-  0%,100%{transform:translate(0,0)}
-  50%{transform:translate(-1.5px,0.5px)}
-}
-@keyframes driftCyan{
-  0%,100%{transform:translate(0,0)}
-  50%{transform:translate(1.5px,-0.5px)}
-}
-@media (prefers-reduced-motion:reduce){
-  .title{animation:none}
-  .title::before,.title::after{animation:none;display:none}
-}
-.subtitle{color:var(--muted);letter-spacing:2px;margin:6px 0 12px;font-size:14px}
-.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
-.badge{
-  font-size:11px;letter-spacing:1px;text-transform:uppercase;
-  border:1px solid var(--border);border-radius:999px;
-  padding:4px 12px;color:var(--cyan);
-  background:rgba(0,245,255,0.06);
-  box-shadow:0 0 10px rgba(0,245,255,0.15) inset;
-}
+.tagline{color:var(--muted);font-size:14px}
+.workflow{display:none;gap:8px;flex-wrap:wrap;align-items:center;width:100%;margin-top:10px}
+.workflow.show{display:flex}
 
-/* ---------- Stage / screens ---------- */
-.stage{margin-top:18px;min-width:0}
+/* ---------- Screens ---------- */
+.stage{margin-top:28px;min-width:0}
 .screen{display:none}
 .screen.active{display:block}
 .screen[hidden]{display:none !important}
-.path-cards{
-  display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;
-}
-@media (max-width:640px){.path-cards{grid-template-columns:1fr}}
-.path-card{
-  text-align:left;cursor:pointer;width:100%;
-  font-family:var(--mono);color:var(--text);
-  background:var(--panel);
-  border:1px solid var(--border);border-radius:var(--radius);
-  padding:22px 20px;
-  backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);
-  box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
-  transition:all .15s ease;
-}
-.path-card:hover{
-  border-color:var(--cyan);transform:translateY(-2px);
-  box-shadow:0 0 24px rgba(0,245,255,0.25);
-}
-.path-card .pc-title{
-  font-size:18px;font-weight:800;letter-spacing:2px;color:var(--cyan);
-  text-transform:uppercase;margin:0 0 8px;
-}
-.path-card .pc-desc{font-size:13px;color:var(--muted);margin:0;line-height:1.45}
-.flow-nav{
-  display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;
-  margin-top:16px;
-}
+.flow-nav{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;margin-top:18px}
 .flow-nav[hidden]{display:none !important}
 .flow-nav .nav-right{display:flex;gap:10px;margin-left:auto}
-.footer-about{margin-top:28px}
 
-/* ---------- Panels ---------- */
-.panel{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  backdrop-filter:blur(9px);
-  -webkit-backdrop-filter:blur(9px);
-  box-shadow:0 0 0 1px rgba(255,43,214,0.06),0 8px 30px rgba(0,0,0,0.55),0 0 24px rgba(0,245,255,0.06);
-  overflow:hidden;
+/* ---------- Hero ---------- */
+.hero{
+  display:grid;gap:20px 40px;
+  grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);
+  grid-template-areas:"view copy" "view reveal" "caption reveal";
+  align-items:start;
 }
-.panel > .panel-head,.panel > summary{
-  padding:14px 18px;
-  display:flex;align-items:center;gap:10px;
-  font-weight:700;letter-spacing:1px;
-  border-bottom:1px solid rgba(0,245,255,0.14);
-  background:linear-gradient(90deg,rgba(0,245,255,0.08),rgba(255,43,214,0.06));
-  user-select:none;
+.hero-copy{grid-area:copy;align-self:end}
+.hero-view{grid-area:view}
+.hero-reveal{grid-area:reveal}
+.view-caption{grid-area:caption}
+.hero h1{font-family:var(--display);font-size:clamp(28px,3.4vw,44px);font-weight:700;letter-spacing:-0.025em;max-width:16ch}
+.hero-copy p{color:var(--muted);margin-top:12px;max-width:44ch}
+
+.viewer{
+  position:relative;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:#000;aspect-ratio:4/3;
 }
-.panel > .panel-head::before{
-  content:"▸";color:var(--cyan);font-size:13px;transform:rotate(90deg);
+.viewer canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+.viewer-status{
+  position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;
+  color:var(--muted);font-size:14px;background:rgba(7,3,15,0.82);
 }
-.panel > summary{
-  cursor:pointer;list-style:none;
+.viewer-status[hidden]{display:none}
+
+.view-switch{display:flex;gap:4px;margin-top:12px;padding:4px;border:1px solid var(--line);border-radius:999px;width:max-content;max-width:100%}
+.view-switch label{margin:0}
+.view-switch input{position:absolute;opacity:0;pointer-events:none}
+.view-switch span{
+  display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:999px;
+  font-size:14px;color:var(--muted);cursor:pointer;transition:color .2s var(--ease),background .2s var(--ease);
 }
+.view-switch input:checked + span{background:var(--surface-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line-strong)}
+.view-switch input[value=changes]:checked + span{color:var(--magenta);box-shadow:inset 0 0 0 1px rgba(255,43,214,0.55)}
+.view-switch input:focus-visible + span{outline:2px solid var(--cyan);outline-offset:2px;box-shadow:var(--glow-focus)}
+.view-caption{color:var(--muted);font-size:14px;margin-top:-8px;max-width:62ch;min-height:3em}
+.view-caption b{color:var(--magenta);font-weight:600;font-family:var(--mono)}
+
+.hero-reveal{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);padding:20px}
+.hero-reveal .field{margin:0}
+.hero-reveal label{margin-top:0}
+.hero-reveal .btns{margin-top:12px}
+.secret-out{
+  margin-top:16px;min-height:5.5em;padding:14px 0;border-radius:10px;border:1px solid transparent;
+  font-family:var(--mono);font-size:14px;color:var(--muted);white-space:pre-wrap;word-break:break-word;
+}
+.secret-out.revealed,.secret-out.failed{padding:14px}
+.secret-out.revealed{border:1px solid var(--magenta);color:var(--text);box-shadow:var(--glow-data);animation:bloom .9s var(--ease)}
+.secret-out.failed{border-style:solid;border-color:rgba(255,92,122,0.6);color:var(--danger)}
+@keyframes bloom{
+  from{box-shadow:0 0 0 rgba(255,43,214,0),0 0 48px rgba(255,43,214,0.8);color:var(--magenta)}
+  to{box-shadow:var(--glow-data)}
+}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px;padding-top:24px;border-top:1px solid var(--line)}
+.hero-actions p{flex-basis:100%;color:var(--muted);font-size:14px}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:minmax(0,1fr);grid-template-areas:"copy" "view" "caption" "reveal"}
+  .view-caption{margin-top:-4px;min-height:0}
+  .view-switch{width:100%}
+  .view-switch label{flex:1}
+  .view-switch span{justify-content:center;width:100%;padding:0 8px}
+}
+
+/* ---------- Panels (wizard steps) ---------- */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.panel > .panel-head{padding:16px 20px 0;font-family:var(--display);font-size:20px;font-weight:700}
+.panel > summary{padding:14px 20px;font-weight:600;cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;min-height:48px}
 .panel > summary::-webkit-details-marker{display:none}
-.panel > summary::before{
-  content:"▸";color:var(--cyan);transition:transform .2s ease;font-size:13px;
-}
-.panel[open] > summary::before{transform:rotate(90deg)}
-.panel .tag{
-  margin-left:auto;font-size:10px;color:var(--muted);
-  border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-weight:500;letter-spacing:1px;
-}
-.panel .body{padding:16px 18px}
-
-.section-letter{
-  color:var(--magenta);font-weight:800;margin-right:2px;
-  text-shadow:0 0 8px rgba(255,43,214,0.5);
-}
+.panel > summary::before{content:"";width:8px;height:8px;border-right:2px solid var(--cyan);border-bottom:2px solid var(--cyan);transform:rotate(-45deg);transition:transform .2s var(--ease)}
+.panel[open] > summary::before{transform:rotate(45deg)}
+.panel .body{padding:16px 20px 20px}
+.footer-about{margin-top:40px}
 
 /* ---------- Controls ---------- */
-label{display:block;font-size:12px;color:var(--muted);letter-spacing:1px;margin:10px 0 4px;text-transform:uppercase}
-.row{display:flex;gap:12px;flex-wrap:wrap}
-.row > .field{flex:1;min-width:150px}
-.field{margin-bottom:2px}
-
+.label-note{font-weight:400;color:var(--muted)}
+label,.out-label{display:block;font-size:14px;font-weight:600;color:var(--text);margin:16px 0 6px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.row > .field{flex:1;min-width:180px}
 input[type=text],input[type=password],input[type=number],select,textarea{
-  width:100%;
-  background:rgba(0,0,0,0.45);
-  border:1px solid var(--border);
-  color:var(--text);
-  border-radius:9px;
-  padding:9px 11px;
-  font-family:var(--mono);
-  font-size:14px;
-  outline:none;
+  width:100%;min-height:44px;
+  background:rgba(0,0,0,0.35);border:1px solid var(--line);border-radius:9px;
+  color:var(--text);padding:10px 12px;font:inherit;font-size:15px;
+  transition:border-color .15s var(--ease);
 }
-textarea{resize:vertical;min-height:80px}
-input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
-  outline:2px solid var(--cyan);
-  outline-offset:2px;
-  box-shadow:0 0 14px rgba(0,245,255,0.4);
+input[type=password],#aesPassword,#decPassword,#demoPassword{font-family:var(--mono)}
+input:hover,select:hover,textarea:hover{border-color:var(--line-strong)}
+textarea{resize:vertical;min-height:96px}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--cyan);outline-offset:2px;box-shadow:var(--glow-focus);
 }
-input[type=range]{width:100%;accent-color:var(--magenta);cursor:pointer}
-input[type=checkbox]{accent-color:var(--cyan);width:16px;height:16px;cursor:pointer}
-.check{display:flex;align-items:center;gap:8px;margin:10px 0}
-.check label{margin:0;text-transform:none;color:var(--text);font-size:13px}
-.rangeval{color:var(--cyan);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--cyan);min-height:32px;cursor:pointer}
+input[type=checkbox]{accent-color:var(--cyan);width:20px;height:20px;cursor:pointer;flex:none}
+.check{display:flex;align-items:center;gap:10px;margin:8px 0;min-height:44px}
+.check label{margin:0;font-weight:400}
+.rangeval{color:var(--cyan);font-family:var(--mono);font-weight:600}
 
 /* ---------- Buttons ---------- */
-.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .btn{
-  font-family:var(--mono);
-  font-size:13px;letter-spacing:1px;
-  padding:9px 16px;
-  border-radius:9px;
-  border:1px solid var(--cyan);
-  background:rgba(0,245,255,0.08);
-  color:var(--cyan);
-  cursor:pointer;
-  text-transform:uppercase;
-  transition:all .15s ease;
-  box-shadow:0 0 10px rgba(0,245,255,0.12);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;
+  font:inherit;font-size:15px;font-weight:600;text-decoration:none;
+  padding:10px 18px;border-radius:10px;cursor:pointer;
+  border:1px solid var(--line-strong);background:rgba(0,245,255,0.06);color:var(--cyan);
+  transition:background .15s var(--ease),border-color .15s var(--ease),transform .15s var(--ease);
 }
-.btn:hover{background:rgba(0,245,255,0.2);box-shadow:0 0 18px rgba(0,245,255,0.4);transform:translateY(-1px)}
-.btn:active{transform:translateY(0)}
-.btn.magenta{border-color:var(--magenta);color:var(--magenta);background:rgba(255,43,214,0.08);box-shadow:0 0 10px rgba(255,43,214,0.15)}
-.btn.magenta:hover{background:rgba(255,43,214,0.2);box-shadow:0 0 18px rgba(255,43,214,0.45)}
-.btn.green{border-color:var(--green);color:var(--green);background:rgba(57,255,20,0.08)}
-.btn.green:hover{background:rgba(57,255,20,0.18);box-shadow:0 0 18px rgba(57,255,20,0.4)}
-.btn.ghost{border-color:var(--muted);color:var(--muted);background:transparent}
-.btn.ghost:hover{color:var(--text);border-color:var(--text)}
-.btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none}
+.btn:hover{background:rgba(0,245,255,0.14);border-color:var(--cyan)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--cyan);border-color:var(--cyan);color:var(--on-accent)}
+.btn.primary:hover{background:#7ffaff}
+.btn.reveal{background:var(--magenta);border-color:var(--magenta);color:var(--on-accent)}
+.btn.reveal:hover{background:#ff7ae6}
+.btn.ghost{border-color:rgba(159,176,195,0.45);color:var(--text);background:transparent}
+.btn.ghost:hover{border-color:var(--text)}
+.btn:disabled{opacity:0.45;cursor:not-allowed;transform:none}
+.btn svg{display:block}
 
 /* ---------- Dropzone ---------- */
 .dropzone{
-  border:2px dashed var(--border);
-  border-radius:12px;
-  padding:26px 18px;
-  text-align:center;
-  color:var(--muted);
-  transition:all .15s ease;
-  cursor:pointer;
-  background:rgba(0,0,0,0.25);
+  border:1px dashed var(--line-strong);border-radius:var(--radius);padding:28px 18px;text-align:center;
+  color:var(--muted);cursor:pointer;background:rgba(0,0,0,0.2);transition:border-color .15s var(--ease),background .15s var(--ease);
 }
-.dropzone.drag{border-color:var(--magenta);color:var(--text);background:rgba(255,43,214,0.08);box-shadow:0 0 24px rgba(255,43,214,0.2) inset}
+.dropzone:hover{border-color:var(--cyan)}
+.dropzone.drag{border-color:var(--cyan);background:rgba(0,245,255,0.06);color:var(--text)}
 .dropzone strong{color:var(--cyan)}
-.preview-img{max-width:100%;max-height:220px;border-radius:10px;border:1px solid var(--border);margin-top:12px;display:block}
+.preview-img{max-width:100%;max-height:240px;border-radius:10px;border:1px solid var(--line);margin-top:14px;display:block}
 
-/* ---------- ASCII output ---------- */
-.ascii-shell{
-  background:#000;
-  border:1px solid var(--border);
-  border-radius:10px;
-  overflow:auto;
-  max-height:60vh;
-  padding:10px;
-}
-pre.ascii{
-  margin:0;
-  font-family:var(--mono);
-  white-space:pre;
-  color:var(--cyan);
-  text-shadow:0 0 6px currentColor;
-}
+/* ---------- ASCII output (user art keeps its neon) ---------- */
+.ascii-shell{background:#000;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:60vh;padding:10px;margin-top:16px}
+pre.ascii{margin:0;font-family:var(--mono);white-space:pre;color:var(--cyan);text-shadow:0 0 6px currentColor}
 pre.ascii.theme-amber{color:var(--amber)}
 pre.ascii.theme-green{color:var(--green)}
 .ascii-empty{color:var(--muted);padding:24px;text-align:center}
 
-/* ---------- Output boxes ---------- */
+/* ---------- Outputs and notices ---------- */
 .output{
-  background:rgba(0,0,0,0.5);
-  border:1px solid var(--border);
-  border-radius:9px;
-  padding:10px 12px;
-  font-size:13px;
-  white-space:pre-wrap;
-  word-break:break-word;
-  min-height:44px;
-  color:var(--text);
-  max-height:240px;overflow:auto;
+  background:rgba(0,0,0,0.4);border:1px solid var(--line);border-radius:9px;padding:12px;
+  font-family:var(--mono);font-size:13px;white-space:pre-wrap;word-break:break-word;
+  min-height:48px;max-height:240px;overflow:auto;color:var(--text);
 }
-.warn{
-  color:var(--amber);
-  font-size:12px;
-  border:1px solid rgba(255,191,0,0.4);
-  background:rgba(255,191,0,0.07);
-  border-radius:8px;padding:8px 10px;margin-top:10px;
-  display:none;
+.output-head{display:flex;align-items:center;gap:8px;margin:18px 0 6px}
+.output-head .out-label{margin:0}
+.copybtn{
+  margin-left:auto;font:inherit;font-size:13px;font-weight:600;min-height:44px;
+  border:1px solid var(--line);background:transparent;color:var(--cyan);border-radius:9px;padding:4px 12px;cursor:pointer;
 }
+.copybtn + .copybtn{margin-left:0}
+.copybtn:hover{border-color:var(--cyan)}
+.warn{color:var(--amber);font-size:14px;border:1px solid rgba(255,191,0,0.4);background:rgba(255,191,0,0.06);border-radius:9px;padding:10px 12px;margin-top:12px;display:none}
 .warn.show{display:block}
-.warn.danger{color:var(--danger);border-color:rgba(255,77,109,0.5);background:rgba(255,77,109,0.08)}
-.hint{color:var(--muted);font-size:12px;margin-top:6px}
-.capacity{font-size:12px;margin-top:8px}
+.hint{color:var(--muted);font-size:14px;margin-top:8px}
+.mini{font-size:13px;color:var(--muted)}
+.capacity{font-size:14px;margin-top:10px;color:var(--muted)}
+.capacity b{color:var(--text);font-family:var(--mono)}
 .capacity .ok{color:var(--green)}
 .capacity .bad{color:var(--danger)}
-
-/* ---------- Toast ---------- */
-#toasts{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px}
-.toast{
-  border:1px solid var(--cyan);
-  background:rgba(5,0,15,0.92);
-  color:var(--text);
-  padding:12px 14px;border-radius:10px;
-  box-shadow:0 0 20px rgba(0,245,255,0.35);
-  font-size:13px;
-  animation:slidein .25s ease;
-  backdrop-filter:blur(6px);
-}
-.toast.error{border-color:var(--danger);box-shadow:0 0 20px rgba(255,77,109,0.45);color:#ffd7de}
-.toast.success{border-color:var(--green);box-shadow:0 0 20px rgba(57,255,20,0.4)}
-.toast.warn{border-color:var(--amber);box-shadow:0 0 20px rgba(255,191,0,0.4)}
-@keyframes slidein{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
-
-/* ---------- About list ---------- */
-ul.limits{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
-ul.limits li{margin:6px 0}
-ul.limits b{color:var(--text)}
-.about-links{display:flex;flex-wrap:wrap;gap:10px}
-.about-links .btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none}
-.about-links .btn svg{display:block}
-
-
-.mini{font-size:11px;color:var(--muted)}
-kbd{background:rgba(0,245,255,0.1);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:11px;color:var(--cyan)}
-hr.sep{border:none;border-top:1px solid rgba(0,245,255,0.14);margin:16px 0}
-
-/* ---------- Workflow steps bar ---------- */
-.workflow{
-  display:none;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center;
-  margin:14px auto 0;max-width:900px;
-}
-.workflow.show{display:flex}
-.step{
-  display:inline-flex;align-items:center;gap:8px;
-  font-size:12px;color:var(--muted);
-  border:1px solid var(--border);border-radius:10px;
-  padding:6px 12px;background:rgba(0,245,255,0.04);
-  font-family:var(--mono);cursor:default;
-}
-button.step{appearance:none;-webkit-appearance:none}
-.step b{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:20px;height:20px;border-radius:50%;
-  background:rgba(145,164,183,0.45);color:#05000f;font-size:11px;font-weight:800;
-}
-.step.active{
-  color:var(--text);border-color:var(--cyan);
-  background:rgba(0,245,255,0.1);box-shadow:0 0 14px rgba(0,245,255,0.2);
-}
-.step.active b{background:var(--magenta);box-shadow:0 0 10px rgba(255,43,214,0.5)}
-.step.done{color:var(--cyan);cursor:pointer}
-.step.done b{background:var(--green);box-shadow:0 0 10px rgba(57,255,20,0.45)}
-.step.done:hover{background:rgba(57,255,20,0.1);border-color:var(--green)}
-.workflow .arrow{color:var(--cyan);margin:0 2px;font-size:12px}
-
-/* ---------- Output header + copy button ---------- */
-.output-head{display:flex;align-items:center;gap:8px;margin:14px 0 4px}
-.output-head label{margin:0}
-.copybtn{
-  margin-left:auto;font-family:var(--mono);font-size:11px;letter-spacing:1px;
-  border:1px solid var(--border);background:rgba(0,245,255,0.06);color:var(--cyan);
-  border-radius:7px;padding:3px 10px;cursor:pointer;text-transform:uppercase;transition:all .15s ease;
-}
-.copybtn:hover{background:rgba(0,245,255,0.18);box-shadow:0 0 12px rgba(0,245,255,0.3)}
-.copybtn:disabled{opacity:0.4;cursor:not-allowed}
-.pw-wrap{position:relative}
-.pw-toggle{
-  position:absolute;right:8px;top:50%;transform:translateY(-50%);
-  background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;
-  font-family:var(--mono);letter-spacing:1px;padding:2px 4px;
-}
-.pw-toggle:hover{color:var(--cyan)}
-.rec-badge{
-  font-size:10px;color:var(--green);border:1px solid rgba(57,255,20,0.5);
-  background:rgba(57,255,20,0.08);border-radius:6px;padding:1px 7px;margin-left:6px;letter-spacing:1px;
-}
-.payload-meta{font-size:11px;color:var(--muted);margin-top:4px}
+.payload-meta{font-size:13px;color:var(--muted);margin-top:6px;font-family:var(--mono)}
 .payload-meta .rdy{color:var(--green)}
-.tune-details{
-  margin-top:14px;border:1px solid var(--border);border-radius:10px;
-  background:rgba(0,245,255,0.04);padding:0;
+kbd{font-family:var(--mono);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
+hr.sep{border:none;border-top:1px solid var(--line);margin:18px 0}
+
+/* ---------- Toasts ---------- */
+#toasts{position:fixed;bottom:20px;right:20px;left:20px;z-index:10;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.toast{
+  max-width:360px;pointer-events:auto;border:1px solid var(--line-strong);background:var(--surface-2);color:var(--text);
+  padding:12px 14px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.5);animation:slidein .25s var(--ease);
 }
-.tune-details > summary{
-  cursor:pointer;list-style:none;padding:10px 14px;font-size:12px;letter-spacing:1px;
-  color:var(--cyan);text-transform:uppercase;user-select:none;
+.toast.error{border-color:var(--danger)}
+.toast.success{border-color:var(--green)}
+.toast.warn{border-color:var(--amber)}
+@keyframes slidein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---------- About ---------- */
+ul.limits{margin:0;padding-left:18px;color:var(--muted);font-size:15px;max-width:72ch}
+ul.limits li{margin:8px 0}
+ul.limits b{color:var(--text);font-weight:600}
+.about-links{display:flex;flex-wrap:wrap;gap:10px}
+
+/* ---------- Step bar ---------- */
+.step{
+  display:inline-flex;align-items:center;gap:8px;min-height:44px;font:inherit;font-size:14px;color:var(--muted);
+  border:1px solid var(--line);border-radius:999px;padding:4px 14px 4px 6px;background:transparent;cursor:default;
 }
+.step b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--surface-2);color:var(--muted);font-family:var(--mono);font-size:12px}
+.step.active{color:var(--text);border-color:var(--cyan);box-shadow:0 0 12px rgba(0,245,255,0.25)}
+.step.active b{background:var(--cyan);color:var(--on-accent)}
+.step.done{color:var(--text);cursor:pointer}
+.step.done b{background:var(--green);color:var(--on-accent)}
+.step.done:hover{border-color:var(--green)}
+.workflow .arrow{width:7px;height:7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(-45deg);margin:0 4px}
+
+/* ---------- Misc ---------- */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:64px}
+.pw-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);min-height:44px;padding:0 10px;background:none;border:0;color:var(--muted);cursor:pointer;font:inherit;font-size:13px}
+.pw-toggle:hover{color:var(--cyan)}
+.tune-details{margin-top:16px;border:1px solid var(--line);border-radius:10px}
+.tune-details > summary{cursor:pointer;list-style:none;padding:12px 14px;font-size:14px;font-weight:600;color:var(--cyan);min-height:44px;display:flex;align-items:center}
 .tune-details > summary::-webkit-details-marker{display:none}
-.tune-details > summary::before{content:"▸ ";color:var(--magenta)}
-.tune-details[open] > summary::before{content:"▾ "}
 .tune-body{padding:0 14px 14px}
-.finish-strip{
-  margin-top:16px;padding-top:14px;border-top:1px solid rgba(0,245,255,0.14);
-}
+.finish-strip{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
 .finish-strip[hidden]{display:none !important}
-.ascii-shell{margin-top:14px}
+.puzzle-toggle{margin-top:4px}
+.cipher-mode-field[hidden]{display:none}
+
+@media (max-width:560px){
+  .wrap{padding:16px 16px 48px}
+  .hero h1{font-size:26px}
+  .hero{gap:12px}
+  .view-switch{margin-top:8px}
+  .tagline{display:none}
+  .stage{margin-top:20px}
+  .panel > .panel-head,.panel .body{padding-left:16px;padding-right:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:0s !important}
+  .secret-out.revealed,.toast{animation:none}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <!-- ===================== A. HEADER ===================== -->
   <header class="app">
-    <h1 class="title" id="homeTitle" data-text="STEGATRIX" tabindex="0" role="link" aria-label="STEGATRIX — back to home">STEGATRIX</h1>
-    <div class="subtitle">Image → Encrypt → Hide</div>
-    <div class="badges">
-      <span class="badge">offline</span>
-      <span class="badge">browser-only</span>
-      <span class="badge">no upload</span>
-    </div>
-    <div class="workflow" id="workflow" aria-label="Workflow steps"></div>
+    <button type="button" class="wordmark" id="homeTitle" aria-label="Stegatrix home">STEGATRIX</button>
+    <p class="tagline">Encrypted messages hidden in images. Runs entirely in your browser; nothing is uploaded.</p>
+    <nav class="workflow" id="workflow" aria-label="Steps"></nav>
   </header>
 
   <div class="stage">
 
-    <!-- HOME: path picker -->
+    <!-- HOME: live demo -->
     <div class="screen active" data-screen="home">
-      <div class="path-cards">
-        <button type="button" class="path-card" data-path="create" aria-label="Create: encode and hide a message">
-          <div class="pc-title">Create</div>
-          <p class="pc-desc">Upload an image, encrypt a message, hide it in an artifact, and download the result.</p>
-        </button>
-        <button type="button" class="path-card" data-path="recover" aria-label="Recover: import and decrypt an artifact">
-          <div class="pc-title">Recover</div>
-          <p class="pc-desc">Import a PNG, TXT, or HTML artifact, extract the payload, and recover the message.</p>
-        </button>
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-copy">
+          <h1 id="heroTitle">There's an encrypted message in this picture.</h1>
+          <p>Stegatrix hid it in your browser a moment ago. Switch views to see where, then reveal it.</p>
+        </div>
+
+        <div class="hero-view">
+          <div class="viewer">
+            <canvas id="demoCanvas" width="960" height="720" role="img" aria-label="Demo image with a hidden message"></canvas>
+            <div class="viewer-status" id="demoStatus">Hiding the sample message…</div>
+          </div>
+          <div class="view-switch" role="radiogroup" aria-label="View">
+            <label><input type="radio" name="demoView" value="image" checked /><span>Image</span></label>
+            <label><input type="radio" name="demoView" value="lsb" /><span>LSB plane</span></label>
+            <label><input type="radio" name="demoView" value="changes" /><span>Changes</span></label>
+          </div>
+        </div>
+        <p class="view-caption" id="demoCaption" aria-live="polite"></p>
+
+        <form class="hero-reveal" id="demoForm">
+          <div class="field">
+            <label for="demoPassword">Password <span class="label-note">(demo; try a wrong one too)</span></label>
+            <input type="text" id="demoPassword" value="neon-lantern-42" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="btns">
+            <button type="submit" class="btn reveal" id="demoReveal" disabled>Reveal the message</button>
+          </div>
+          <div class="secret-out" id="demoSecret" aria-live="polite">The message is still hidden.</div>
+        </form>
+      </section>
+
+      <div class="hero-actions">
+        <button type="button" class="btn primary" data-path="create">Hide your own message</button>
+        <button type="button" class="btn" data-path="recover">Recover a message</button>
+        <p>Hiding takes three steps: pick an image, encrypt with a password, choose where to hide it.</p>
       </div>
     </div>
 
     <!-- CREATE 1: Image & ASCII -->
     <div class="screen" data-screen="image" hidden>
       <section class="panel">
-        <div class="panel-head"><span class="section-letter">1.</span> Image &amp; ASCII <span class="tag">source</span></div>
+        <h2 class="panel-head">Image &amp; ASCII</h2>
         <div class="body">
           <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload image: click or drag and drop">
             <div>Drag &amp; drop an image here, or <strong>click to browse</strong></div>
@@ -460,18 +362,18 @@ button.step{appearance:none;-webkit-appearance:none}
             <input type="file" id="fileInput" accept="image/*" hidden />
           </div>
           <div class="btns">
-            <button class="btn magenta" id="demoImage">Load demo image</button>
+            <button class="btn" id="demoImage">Load demo image</button>
           </div>
           <img id="previewImg" class="preview-img" alt="Original image preview" style="display:none" />
 
           <div class="ascii-shell" id="asciiShell">
-            <div class="ascii-empty" id="asciiEmpty">Upload an image to forge ASCII art…</div>
+            <div class="ascii-empty" id="asciiEmpty">Pick an image to see it as ASCII art.</div>
             <pre class="ascii" id="asciiOut" aria-live="polite"></pre>
           </div>
           <div class="btns">
             <button class="btn" id="copyAscii">Copy ASCII</button>
-            <button class="btn magenta" id="downloadAscii">Download .txt</button>
-            <button class="btn green" id="exportAsciiPng">Export as PNG</button>
+            <button class="btn" id="downloadAscii">Download .txt</button>
+            <button class="btn" id="exportAsciiPng">Export as PNG</button>
           </div>
 
           <details class="tune-details">
@@ -515,7 +417,7 @@ button.step{appearance:none;-webkit-appearance:none}
                 </div>
               </div>
               <div class="field" id="customCharsetField" style="display:none">
-                <label for="customCharset">Custom characters (dark → light)</label>
+                <label for="customCharset">Custom characters, dark to light</label>
                 <input type="text" id="customCharset" value="@#=-. " placeholder="e.g. @#=-. " />
               </div>
               <div class="field">
@@ -539,14 +441,15 @@ button.step{appearance:none;-webkit-appearance:none}
     <!-- CREATE 2: Encrypt -->
     <div class="screen" data-screen="cipher" hidden>
       <section class="panel">
-        <div class="panel-head"><span class="section-letter">2.</span> Encrypt <span class="tag">cipher</span></div>
+        <h2 class="panel-head">Encrypt</h2>
         <div class="body">
           <label for="secret">Secret message</label>
           <textarea id="secret" placeholder="Type the message to encrypt / encode…"></textarea>
 
-          <div class="row">
+          <div class="check puzzle-toggle"><input type="checkbox" id="puzzleModes" /><label for="puzzleModes">Show puzzle ciphers (not secure)</label></div>
+          <div class="row cipher-mode-field" id="cipherModeField" hidden>
             <div class="field">
-              <label for="cipherMode">Mode</label>
+              <label for="cipherMode">Cipher</label>
               <select id="cipherMode">
                 <option value="aes" selected>AES-GCM (secure)</option>
                 <option value="base64">None / Base64 wrapper</option>
@@ -573,7 +476,7 @@ button.step{appearance:none;-webkit-appearance:none}
           <div class="cipher-opt" data-for="aes" style="display:none">
             <div class="row">
               <div class="field">
-                <label for="aesPassword">Password <span class="rec-badge">secure</span></label>
+                <label for="aesPassword">Password</label>
                 <div class="pw-wrap">
                   <input type="password" id="aesPassword" placeholder="strong passphrase" />
                   <button type="button" class="pw-toggle" data-target="aesPassword" aria-label="Show or hide password">show</button>
@@ -585,19 +488,19 @@ button.step{appearance:none;-webkit-appearance:none}
           <div class="warn" id="cipherWarn">Puzzle cipher only; not secure.</div>
 
           <div class="btns">
-            <button class="btn green" id="encryptBtn">Encrypt</button>
+            <button class="btn primary" id="encryptBtn">Encrypt</button>
             <button class="btn ghost" id="decryptBtn">Decrypt</button>
             <button class="btn ghost" id="clearCipher">Clear</button>
           </div>
 
           <div class="output-head">
-            <label>Encrypted payload</label>
+            <span class="out-label">Encrypted payload</span>
             <button class="copybtn" data-copy="payloadOut">Copy</button>
           </div>
           <div class="output" id="payloadOut" aria-live="polite"></div>
           <div class="payload-meta" id="payloadMeta"></div>
           <div class="output-head">
-            <label>Decrypted result</label>
+            <span class="out-label">Decrypted result</span>
             <button class="copybtn" data-copy="plainOut">Copy</button>
           </div>
           <div class="output" id="plainOut" aria-live="polite"></div>
@@ -608,7 +511,7 @@ button.step{appearance:none;-webkit-appearance:none}
     <!-- CREATE 3: Hide & finish -->
     <div class="screen" data-screen="stego" hidden>
       <section class="panel">
-        <div class="panel-head"><span class="section-letter">3.</span> Hide &amp; finish <span class="tag">artifact</span></div>
+        <h2 class="panel-head">Hide &amp; finish</h2>
         <div class="body">
           <label for="stegoMode">Hide mode</label>
           <select id="stegoMode">
@@ -627,12 +530,12 @@ button.step{appearance:none;-webkit-appearance:none}
           </div>
 
           <div class="btns">
-            <button class="btn green" id="hideBtn">Hide payload</button>
+            <button class="btn primary" id="hideBtn">Hide payload</button>
           </div>
           <div class="hint">Uses the encrypted payload from the previous step. Encrypt a message first.</div>
 
           <div class="output-head">
-            <label>Stego output</label>
+            <span class="out-label">Stego output</span>
             <button class="copybtn" data-copy="stegoOut" id="copyStego">Copy</button>
             <button class="copybtn" id="saveStegoTxt">Save .txt</button>
           </div>
@@ -641,7 +544,7 @@ button.step{appearance:none;-webkit-appearance:none}
           <div id="finishStrip" class="finish-strip" hidden>
             <div class="hint" id="finishHint">Artifact ready.</div>
             <div class="btns">
-              <button type="button" class="btn magenta" id="gotoDecode">Recover an artifact →</button>
+              <button type="button" class="btn" id="gotoDecode">Recover it now</button>
             </div>
             <details class="tune-details">
               <summary>Advanced exports</summary>
@@ -661,7 +564,7 @@ button.step{appearance:none;-webkit-appearance:none}
     <!-- RECOVER: Import -->
     <div class="screen" data-screen="import" hidden>
       <section class="panel">
-        <div class="panel-head"><span class="section-letter">1.</span> Import <span class="tag">extract</span></div>
+        <h2 class="panel-head">Import</h2>
         <div class="body">
           <div class="dropzone" id="importDrop" tabindex="0" role="button" aria-label="Import artifact: click or drag and drop">
             <div>Drop a <strong>PNG / TXT / HTML</strong> artifact, or <strong>click to browse</strong></div>
@@ -675,7 +578,7 @@ button.step{appearance:none;-webkit-appearance:none}
             <button class="btn" id="decodePaste">Decode pasted text</button>
           </div>
           <div class="output-head">
-            <label>Extracted payload</label>
+            <span class="out-label">Extracted payload</span>
             <button class="copybtn" data-copy="extractOut">Copy</button>
           </div>
           <div class="output" id="extractOut" aria-live="polite"></div>
@@ -686,7 +589,7 @@ button.step{appearance:none;-webkit-appearance:none}
     <!-- RECOVER: Decrypt -->
     <div class="screen" data-screen="recover" hidden>
       <section class="panel">
-        <div class="panel-head"><span class="section-letter">2.</span> Recover Message <span class="tag">decrypt</span></div>
+        <h2 class="panel-head">Recover the message</h2>
         <div class="body">
           <div class="mini">Decrypt the extracted payload using the settings below (must match how it was encrypted).</div>
           <div class="row">
@@ -713,10 +616,10 @@ button.step{appearance:none;-webkit-appearance:none}
             </div>
           </div>
           <div class="btns">
-            <button class="btn green" id="recoverBtn">Recover message</button>
+            <button class="btn primary" id="recoverBtn">Recover message</button>
           </div>
           <div class="output-head">
-            <label>Recovered plaintext</label>
+            <span class="out-label">Recovered plaintext</span>
             <button class="copybtn" data-copy="recoverOut">Copy</button>
           </div>
           <div class="output" id="recoverOut" aria-live="polite"></div>
@@ -727,8 +630,8 @@ button.step{appearance:none;-webkit-appearance:none}
     <div class="flow-nav" id="flowNav" hidden>
       <button type="button" class="btn ghost" id="btnBack">Back</button>
       <div class="nav-right">
-        <button type="button" class="btn green" id="btnNext">Next</button>
-        <button type="button" class="btn magenta" id="btnRestart" hidden>Start over</button>
+        <button type="button" class="btn primary" id="btnNext">Next</button>
+        <button type="button" class="btn" id="btnRestart" hidden>Start over</button>
       </div>
     </div>
 
@@ -736,7 +639,7 @@ button.step{appearance:none;-webkit-appearance:none}
 
   <!-- About / Limits (footer) -->
   <details class="panel footer-about">
-    <summary>About / Limits <span class="tag">honesty</span></summary>
+    <summary>About and limits</summary>
     <div class="body">
       <ul class="limits">
         <li><b>ASCII conversion is lossy and visual only.</b> The original image cannot be reconstructed from ASCII.</li>
@@ -758,7 +661,7 @@ button.step{appearance:none;-webkit-appearance:none}
 
 </div>
 
-<div id="toasts" aria-live="assertive"></div>
+<div id="toasts" aria-live="polite"></div>
 
 <script src="core.js"></script>
 <script>
@@ -911,7 +814,6 @@ function refreshWizard() {
     if (i) {
       const arrow = document.createElement("span");
       arrow.className = "arrow";
-      arrow.textContent = "→";
       arrow.setAttribute("aria-hidden", "true");
       bar.appendChild(arrow);
     }
@@ -989,9 +891,6 @@ function bindWizard() {
   $("gotoDecode").addEventListener("click", () => startPath("recover"));
   const title = $("homeTitle");
   title.addEventListener("click", goHome);
-  title.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHome(); }
-  });
 }
 
 const CHARSETS = {
@@ -1058,33 +957,43 @@ function loadImageFile(file) {
 }
 
 // Generate a built-in demo image so users can try the app instantly.
-function generateDemoImage() {
+function drawDemoCanvas() {
   const w = 480, h = 360;
   const cvs = document.createElement("canvas");
   cvs.width = w; cvs.height = h;
   const c = cvs.getContext("2d");
   // synthwave sky gradient
   const sky = c.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, "#1a0033");
+  sky.addColorStop(0, "#1a0833");
   sky.addColorStop(0.55, "#3a0d5c");
-  sky.addColorStop(0.75, "#ff2bd6");
-  sky.addColorStop(1, "#ffbf00");
+  sky.addColorStop(0.75, "#f82bd6");
+  sky.addColorStop(1, "#f8bf0c");
   c.fillStyle = sky; c.fillRect(0, 0, w, h);
   // sun
   const sun = c.createRadialGradient(w / 2, h * 0.62, 10, w / 2, h * 0.62, 120);
-  sun.addColorStop(0, "#fff2b0"); sun.addColorStop(1, "rgba(255,43,214,0)");
+  sun.addColorStop(0, "#f8eeb0"); sun.addColorStop(1, "rgba(255,43,214,0)");
   c.fillStyle = sun; c.beginPath(); c.arc(w / 2, h * 0.62, 120, 0, Math.PI * 2); c.fill();
   // sun stripes
-  c.fillStyle = "#1a0033";
+  c.fillStyle = "#1a0833";
   for (let y = h * 0.55; y < h * 0.75; y += 10) c.fillRect(w / 2 - 120, y, 240, 4);
   // grid floor
-  c.strokeStyle = "rgba(0,245,255,0.7)"; c.lineWidth = 1;
+  c.strokeStyle = "rgba(12,240,248,0.7)"; c.lineWidth = 1;
   const hz = h * 0.72;
   for (let i = -10; i <= 10; i++) { c.beginPath(); c.moveTo(w / 2 + i * 24, hz); c.lineTo(w / 2 + i * 120, h); c.stroke(); }
   for (let y = hz; y < h; y += 12) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
   // skyline silhouette
-  c.fillStyle = "#0a0018";
+  c.fillStyle = "#100a1c";
   for (let x = 0; x < w; x += 34) { const bh = 40 + (Math.sin(x) + 1) * 45; c.fillRect(x, hz - bh, 26, bh); }
+  // Film grain: real photos carry sensor noise, which is why their LSB plane looks like static.
+  // The palette above stays clear of 0 and 255 so the grain never clips and every low bit randomizes.
+  const px = c.getImageData(0, 0, w, h);
+  for (let i = 0; i < px.data.length; i++) if (i % 4 !== 3) px.data[i] += Math.round((Math.random() - 0.5) * 6);
+  c.putImageData(px, 0, 0);
+  return cvs;
+}
+
+function generateDemoImage() {
+  const cvs = drawDemoCanvas();
   const img = new Image();
   img.onload = () => showImagePreview(img, "Demo image loaded.");
   img.src = cvs.toDataURL("image/png");
@@ -1243,6 +1152,131 @@ function exportAsciiPng() {
   cvs.toBlob((blob) => downloadBlob(blob, `stegatrix-ascii-${timestamp()}.png`), "image/png");
 }
 
+/* --- Home demo: hide a real message in the demo image, then show where it went --- */
+const DEMO_PASSWORD = "neon-lantern-42";
+const DEMO_MESSAGE = "You found it. This sentence was encrypted with AES-256-GCM and scattered across the picture's lowest bits, in an order only the password reproduces.";
+const demo = { cover: null, stego: null, frame: null, changedPixels: [], changedValues: 0, view: "image" };
+
+const DEMO_CAPTIONS = {
+  image: () => "The picture as anyone sees it. The message is already inside.",
+  lsb: () => "Only the lowest bit of every color value. It looks like static, as it does in any real photo, so there's nothing to spot.",
+  changes: () => `<b>${demo.changedValues.toLocaleString()}</b> of ${(demo.cover.data.length / 4 * 3).toLocaleString()} color values changed, each by ±1. The labelled run at the top left is the random salt, stored in order; the rest follow a password-keyed order. Without the password or the original image, there's no telling which ones.`
+};
+
+// Renders the current view at display resolution: the image, its LSB plane, or the changes over a grey-dimmed copy.
+function renderDemoFrame() {
+  const { width: w, height: h } = demo.stego;
+  const src = demo.stego.data;
+  const frame = new ImageData(w, h);
+  const dst = frame.data;
+  for (let i = 0; i < src.length; i += 4) {
+    const lum = 0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2];
+    for (let ch = 0; ch < 3; ch++) {
+      const v = src[i + ch];
+      dst[i + ch] = demo.view === "lsb" ? (v & 1) * 255 : demo.view === "changes" ? lum * 0.25 : v;
+    }
+    dst[i + 3] = 255;
+  }
+  const small = document.createElement("canvas");
+  small.width = w; small.height = h;
+  small.getContext("2d").putImageData(frame, 0, 0);
+  const out = document.createElement("canvas");
+  out.width = $("demoCanvas").width; out.height = $("demoCanvas").height;
+  const c = out.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.drawImage(small, 0, 0, out.width, out.height);
+  if (demo.view === "changes") {
+    // Bright dots on a grey field: the contrast reads without relying on hue.
+    const sx = out.width / w, sy = out.height / h;
+    c.fillStyle = "#ff2bd6";
+    for (const p of demo.changedPixels) c.fillRect((p % w) * sx - sx, ((p / w) | 0) * sy - sy, sx * 3, sy * 3);
+    // The salt sits in the first 43 pixels, in order; label it so it reads as part of the format, not a glitch.
+    const k = out.width / ($("demoCanvas").clientWidth || out.width); // canvas px per CSS px
+    c.font = `600 ${Math.round(14 * k)}px ui-monospace, Menlo, Consolas, monospace`;
+    const label = "salt, stored in order";
+    c.fillStyle = "rgba(7,3,15,0.85)";
+    c.fillRect(10, 16, c.measureText(label).width + 12 * k, 24 * k);
+    c.fillStyle = "#e9f8ff";
+    c.fillText(label, 10 + 6 * k, 16 + 17 * k);
+  }
+  return out;
+}
+
+let demoWipe = 0;
+function drawDemoView() {
+  const cvs = $("demoCanvas");
+  const c = cvs.getContext("2d");
+  const next = renderDemoFrame();
+  const prev = demo.frame;
+  demo.frame = next;
+  $("demoCaption").innerHTML = DEMO_CAPTIONS[demo.view]();
+  cvs.setAttribute("aria-label", { image: "Demo image with a hidden message", lsb: "Least significant bit plane of the demo image: random static", changes: `Demo image in grey with ${demo.changedPixels.length} changed pixels marked` }[demo.view]);
+  if (!prev || matchMedia("(prefers-reduced-motion: reduce)").matches) { c.drawImage(next, 0, 0); return; }
+  // Signature move: a scan line sweeps across and swaps one plane for the next.
+  const id = ++demoWipe, start = performance.now(), W = cvs.width, H = cvs.height;
+  const step = (t) => {
+    if (id !== demoWipe) return;
+    const k = Math.min(1, (t - start) / 420);
+    const x = Math.round(W * (1 - Math.pow(1 - k, 3)));
+    c.drawImage(prev, 0, 0);
+    if (x > 0) c.drawImage(next, 0, 0, x, H, 0, 0, x, H);
+    if (k < 1) {
+      c.fillStyle = "#00f5ff";
+      c.fillRect(x - 2, 0, 3, H);
+      requestAnimationFrame(step);
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+async function initDemo() {
+  const status = $("demoStatus");
+  if (!hasWebCrypto()) { status.textContent = "This browser has no Web Crypto API, so the live demo can't run here."; return; }
+  try {
+    const cvs = drawDemoCanvas();
+    demo.cover = cvs.getContext("2d").getImageData(0, 0, cvs.width, cvs.height);
+    demo.stego = new ImageData(new Uint8ClampedArray(demo.cover.data), cvs.width, cvs.height);
+    const payload = await applyCipher("aes", DEMO_MESSAGE, { aesPassword: DEMO_PASSWORD }, true);
+    await embedPayloadKeyed(demo.stego, payload, DEMO_PASSWORD);
+    const a = demo.cover.data, b = demo.stego.data;
+    for (let i = 0; i < a.length; i += 4) {
+      let hit = false;
+      for (let ch = 0; ch < 3; ch++) if (a[i + ch] !== b[i + ch]) { demo.changedValues++; hit = true; }
+      if (hit) demo.changedPixels.push(i / 4);
+    }
+    status.hidden = true;
+    $("demoReveal").disabled = false;
+    drawDemoView();
+  } catch (e) {
+    status.textContent = "The demo couldn't run: " + e.message;
+  }
+}
+
+function bindDemo() {
+  document.querySelectorAll("input[name=demoView]").forEach((r) => r.addEventListener("change", () => {
+    demo.view = r.value;
+    if (demo.stego) drawDemoView();
+  }));
+  $("demoForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out = $("demoSecret"), btn = $("demoReveal");
+    btn.disabled = true;
+    out.className = "secret-out";
+    out.textContent = "Deriving the key and reading the hidden bits…";
+    try {
+      const msg = await openPayloadKeyed(demo.stego, $("demoPassword").value);
+      void out.offsetWidth; // restart the reveal animation on repeat reveals
+      out.textContent = msg;
+      out.classList.add("revealed");
+    } catch (err) {
+      out.textContent = err.message;
+      out.classList.add("failed");
+    }
+    btn.disabled = false;
+    out.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+}
+
 function cipherFields(source) {
   if (source === "recover") {
     return {
@@ -1336,8 +1370,8 @@ function updateCapacity() {
   let html = `Capacity: <b>${capBytes.toLocaleString()}</b> bytes (${w}×${h}×3 bits).`;
   if (payload) {
     html += fits
-      ? ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="ok">fits ✓</span>`
-      : ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="bad">too large ✗</span>`;
+      ? ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="ok">fits</span>`
+      : ` Payload needs <b>${needBytes.toLocaleString()}</b> bytes — <span class="bad">too large</span>`;
   } else {
     html += " <span class='bad'>No payload yet.</span>";
   }
@@ -1696,10 +1730,17 @@ function init() {
   $("expPayloadJson").addEventListener("click", exportPayloadJson);
   $("expReadme").addEventListener("click", exportReadme);
 
+  $("puzzleModes").addEventListener("change", (e) => {
+    $("cipherModeField").hidden = !e.target.checked;
+    if (!e.target.checked) { $("cipherMode").value = "aes"; state.settings.cipherMode = "aes"; syncCipherUi(); }
+  });
+
   syncCipherUi();
   syncDecUi();
   bindWizard();
+  bindDemo();
   goTo("home");
+  initDemo();
 }
 
 document.addEventListener("DOMContentLoaded", init);

@@ -1,0 +1,23 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "index.html"
+        ],
+        "createdAt": "2026-10-19T13:43:00.346Z",
+        "reason": "previewImg is hidden until an upload sets its src; never rendered empty"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-10-19T21:31:37.513Z",
+        "reason": "user confirmed: chose Geist for the display face on 2026-10-20 after seeing alternatives"
+      }
+    ]
+  }
+}
