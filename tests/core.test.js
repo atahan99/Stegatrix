@@ -43,22 +43,10 @@ test("every payload is an envelope that names its mode and carries no app tag or
   }
 });
 
-test("raw pre-envelope payloads still decrypt with an explicit mode", async () => {
-  assert.equal(await core.applyCipher("caesar", "Uryyb", { caesarShift: 13 }, false), "Hello");
-  assert.equal(await core.applyCipher("base64", "aGVsbG8=", {}, false), "hello");
+test("decrypting rejects anything that isn't an envelope", async () => {
+  await assert.rejects(core.applyCipher("caesar", "Uryyb", { caesarShift: 13 }, false), /Not a Stegatrix payload/);
+  await assert.rejects(core.applyCipher("aes", JSON.stringify({ type: "aes-gcm" }), { aesPassword: "pw" }, false), /Not a Stegatrix payload/);
   assert.equal(core.payloadMode("Uryyb"), null);
-});
-
-test("v1 AES envelopes (deriveKey, type aes-gcm) still decrypt", async () => {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const material = await crypto.subtle.importKey("raw", new TextEncoder().encode("pw"), "PBKDF2", false, ["deriveKey"]);
-  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: FAST, hash: "SHA-256" }, material, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
-  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(MESSAGE));
-  const b64 = (b) => Buffer.from(b).toString("base64");
-  const v1 = JSON.stringify({ app: "STEGATRIX", version: 1, type: "aes-gcm", iterations: FAST, salt: b64(salt), iv: b64(iv), ciphertext: b64(ct) });
-  assert.equal(core.payloadMode(v1), "aes");
-  assert.equal(await core.applyCipher("auto", v1, { aesPassword: "pw" }, false), MESSAGE);
 });
 
 test("AES uses a fresh salt and IV each time", async () => {
@@ -95,8 +83,9 @@ test("HTML carrier round-trips a payload that contains </script>", () => {
   assert.equal(core.decodeHtmlPayloadText(scriptText(html)), MESSAGE);
 });
 
-test("HTML carrier still reads older unquoted artifacts", () => {
-  assert.equal(core.decodeHtmlPayloadText("  aGVsbG8=  "), "aGVsbG8=");
+test("HTML carrier rejects a script tag that isn't a JSON string", () => {
+  assert.equal(core.decodeHtmlPayloadText("  aGVsbG8=  "), null);
+  assert.equal(core.decodeHtmlPayloadText("{}"), null);
 });
 
 test("zero-width carrier round-trips inside cover text", () => {
@@ -127,6 +116,16 @@ test("PNG embedding rejects payloads over capacity", () => {
 
 test("PNG extraction rejects images without a payload", () => {
   assert.throws(() => core.extractPayloadFromImageData(imageData(64, 48)), /No STEGATRIX payload/);
+});
+
+test("lsbAgreement tells a flat cover from a noisy one", () => {
+  const flat = imageData(64, 48);
+  for (let i = 0; i < flat.data.length; i++) if (i % 4 !== 3) flat.data[i] = 120;
+  assert.equal(core.lsbAgreement(flat), 1);
+  const noisy = imageData(64, 48);
+  for (let i = 0; i < noisy.data.length; i++) if (i % 4 !== 3) noisy.data[i] = crypto.getRandomValues(new Uint8Array(1))[0];
+  const a = core.lsbAgreement(noisy);
+  assert.ok(a > 0.4 && a < 0.6, `noisy agreement ${a}`);
 });
 
 // ---- Keyed PNG (AES): runs real 600k-iteration PBKDF2, so a few seconds ----

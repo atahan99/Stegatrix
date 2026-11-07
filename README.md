@@ -44,7 +44,7 @@ The image also gets converted to ASCII art. That's purely visual: it gives the t
 
 Base64, Caesar, Atbash, Vigenère and XOR are also included, as puzzle modes. They're labelled as insecure in the UI and they are. Use them for CTF-style puzzles, not secrets.
 
-Every payload is a small JSON envelope that names its mode (`{"v":2,"mode":"caesar","data":"…"}`), so Recover detects how a message was made. You still supply the key. Older payloads without an envelope still decrypt if you pick the mode by hand.
+Every payload is a small JSON envelope that names its mode (`{"v":2,"mode":"caesar","data":"…"}`), so Recover detects how a message was made. You still supply the key. Anything that isn't an envelope is rejected.
 
 ## Keyed PNG format
 
@@ -71,6 +71,7 @@ Read this before trusting Stegatrix with anything.
 **What it doesn't protect:**
 
 - **The fact that a message exists, except in keyed PNGs.** The ASCII, HTML and zero-width carriers are labelled containers, and puzzle-mode PNGs start with `STGTRX1`. Keyed PNGs have no marker and use LSB matching, which defeats the classic pair-based attacks. Histogram-based and machine-learning steganalysis can still detect LSB matching at higher embedding rates, so keep payloads small relative to the image.
+- **Smooth cover images.** In a photo, the lowest bits are sensor noise, so ±1 changes disappear into them. In a flat graphic, gradient or screenshot the low bits form clean patterns, and both the in-order salt run and the scattered changes show up in the LSB plane. The Hide step measures this and warns you. Use a real photo.
 - **Message length in text carriers.** Their ciphertext length gives away the message length. Keyed PNGs mask it.
 - **Weak passwords.** There's no strength check, and PBKDF2 slows down offline guessing without stopping it.
 - **A compromised browser or device.** The plaintext and password sit in the page's memory and DOM while you use it.
@@ -79,7 +80,9 @@ Read this before trusting Stegatrix with anything.
 
 Encryption, embedding and extraction all happen locally. Your images, messages and passwords are never sent anywhere.
 
-The page loads no third-party scripts, has no analytics and makes no network requests after it loads. The `_headers` CSP enforces that on the hosted demo. Saved as a file, it runs fully offline.
+The app loads no third-party code, has no analytics of its own and makes no network requests after it loads. The `_headers` CSP enforces that: scripts only from the page's own origin, no inline scripts, `connect-src 'none'`. Saved as a file, it runs fully offline.
+
+The hosted demo sits behind Cloudflare, which runs bot protection and blocks traffic from some regions at the edge. Cloudflare's bot protection injects an inline detection script into the page; the CSP refuses to run it, so you'll see that refusal in the browser console. If you'd rather not touch Cloudflare at all, clone the repo and open `index.html`.
 
 ## Screenshots
 
@@ -87,13 +90,23 @@ The page loads no third-party scripts, has no analytics and makes no network req
 |---|---|
 | ![Encrypt step with an AES-GCM envelope ready to hide](docs/screenshots/encrypt.jpg) | ![Home page on a phone](docs/screenshots/mobile.jpg) |
 
+## Design decisions
+
+- **No build step, no dependencies.** Two classic scripts (`core.js`, `app.js`) and a stylesheet. Classic scripts rather than ES modules because modules don't load from `file://`, and offline use is a feature.
+- **Pure logic in `core.js`.** Everything that touches bytes (ciphers, envelopes, carriers, the keyed PNG layout) is DOM-free, so Node's built-in test runner covers it without a browser.
+- **PBKDF2, not Argon2.** Argon2 is the better password hash, but Web Crypto doesn't offer it and a WASM build would be the project's first dependency. PBKDF2 at OWASP's 600k iterations is the strongest option the platform gives you.
+- **One PBKDF2 output, two uses.** It is the AES-GCM key, and it's also the input to HKDF, which derives the separate AES-CTR key that drives the pixel order. HKDF with its own `info` label gives an independent key, so the two uses don't interact. A future format version would derive both keys through HKDF for a cleaner separation; doing it now would break existing files.
+- **LSB matching, not replacement.** Replacement is one line of code and is caught by chi-square and RS analysis. Matching costs a random coin per changed bit.
+- **Same error for "wrong password" and "nothing here."** A keyed PNG should be indistinguishable from a plain image, so failure can't say which it was.
+- **Strict CSP over convenience.** No inline scripts, no `eval`, no network access. Inline `style` attributes are still allowed because the ASCII renderer colors characters one by one.
+
 ## Run it locally
 
 ```bash
 git clone https://github.com/atahan99/Stegatrix.git
 ```
 
-Open `index.html` in any modern browser. It loads `core.js` from the same folder. Web Crypto works on `file://`, `localhost` and HTTPS, so you don't need a server.
+Open `index.html` in any modern browser. It loads `core.js`, `app.js` and `styles.css` from the same folder. Web Crypto works on `file://`, `localhost` and HTTPS, so you don't need a server.
 
 ## Tests
 
@@ -106,10 +119,14 @@ Node 20 or newer, no install. The tests round-trip every cipher and carrier, and
 ## Project layout
 
 ```
-index.html        UI: markup, styles and browser glue (canvas, files, wizard, home demo)
+index.html        markup
+styles.css        styles
+app.js            browser glue: wizard, canvas, files, home demo
 core.js           pure cipher and stego functions, shared with the tests
 tests/            node --test suite
-_headers          security headers for Cloudflare Pages (CSP, frame and referrer policy)
+_headers          security headers (CSP, COOP, frame and referrer policy)
+wrangler.jsonc    Cloudflare Workers static-assets deploy; .assetsignore lists what ships
+og.jpg            social preview image
 favicon.svg
 fonts/            Geist Bold, self-hosted (SIL Open Font License)
 docs/screenshots/
@@ -118,9 +135,18 @@ docs/screenshots/
 ## Known issues
 
 - **Transparent PNGs** are flattened onto white before hiding, because browsers store canvas pixels with premultiplied alpha and would round the hidden bits away.
+- **Very large images** (over 40 megapixels) are refused, because reading their pixels back from a canvas can take hundreds of megabytes and crash the tab.
 - **Older AES messages can't use the keyed PNG.** Messages encrypted before the fixed 600k setting have to be encrypted again (the app says so).
 - **Fingerprinting protection:** browsers that add noise to canvas reads (Brave, or Firefox with `resistFingerprinting`) break PNG embedding and extraction.
 
+## Deploy
+
+The demo is served as Workers static assets. `.assetsignore` is an allowlist, so only the files the page needs are uploaded.
+
+```bash
+npx wrangler deploy
+```
+
 ## License
 
-No license file yet. All rights reserved until one is added.
+[MIT](LICENSE)
