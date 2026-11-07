@@ -135,7 +135,6 @@ async function deriveKeyBits(password, salt, iterations) {
   const material = await crypto.subtle.importKey("raw", stringToUtf8Bytes(password), "PBKDF2", false, ["deriveBits"]);
   return new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations, hash: "SHA-256" }, material, 256));
 }
-// Same key PBKDF2 deriveKey would give, so v1 payloads still decrypt.
 const importAesKey = (bits) => crypto.subtle.importKey("raw", bits, "AES-GCM", false, ["encrypt", "decrypt"]);
 const deriveAesKey = async (password, salt, iterations) => importAesKey(await deriveKeyBits(password, salt, iterations));
 
@@ -158,12 +157,12 @@ async function aesEncrypt(plaintext, password, iterations = PBKDF2_ITERATIONS) {
 async function aesDecrypt(payload, password) {
   if (!hasWebCrypto()) throw new Error("This browser does not support the Web Crypto API.");
   const p = typeof payload === "string" ? parseEnvelope(payload) : payload;
-  if (!p || (p.mode !== "aes" && p.type !== "aes-gcm") || !p.salt || !p.iv || !p.ciphertext) {
+  if (!p || p.mode !== "aes" || !p.salt || !p.iv || !p.ciphertext) {
     throw new Error("Not a valid AES-GCM payload.");
   }
   const salt = base64ToBytes(p.salt);
   const iv = base64ToBytes(p.iv);
-  const iterations = p.iterations || 250000;
+  const iterations = p.iterations;
   if (!Number.isInteger(iterations) || iterations < 1 || iterations > PBKDF2_MAX) {
     throw new Error("Payload asks for an unsupported PBKDF2 iteration count.");
   }
@@ -177,13 +176,11 @@ async function aesDecrypt(payload, password) {
   return utf8BytesToString(new Uint8Array(plainBuf));
 }
 
-// Every payload is a JSON envelope naming its mode, so Recover can tell how it was made.
-// Returns null for raw pre-envelope payloads; v1 AES envelopes ({type: "aes-gcm"}) count as mode "aes".
+// Every payload is a JSON envelope naming its mode, so Recover can tell how it was made. Returns null for anything else.
 function parseEnvelope(text) {
   let p;
   try { p = JSON.parse(text); } catch (e) { return null; }
   if (!p || typeof p !== "object") return null;
-  if (p.type === "aes-gcm") return Object.assign({}, p, { mode: "aes" });
   return MODES.includes(p.mode) ? p : null;
 }
 const payloadMode = (text) => { const env = parseEnvelope(text); return env ? env.mode : null; };
@@ -197,11 +194,13 @@ function puzzleCipher(mode, text, fields, encrypt) {
   throw new Error("Unknown cipher mode.");
 }
 
-// Encrypting always returns an envelope. Decrypting trusts the envelope's mode; `mode` only matters for raw legacy payloads.
+// Encrypting always returns an envelope. Decrypting reads the mode from the envelope, so `mode` is ignored there.
 async function applyCipher(mode, text, fields, encrypt) {
   if (!encrypt) {
     const env = parseEnvelope(text);
-    if (env) { mode = env.mode; if (mode !== "aes") text = String(env.data); }
+    if (!env) throw new Error("Not a Stegatrix payload.");
+    mode = env.mode;
+    if (mode !== "aes") text = String(env.data);
   }
   if (mode === "aes") {
     if (!fields.aesPassword) throw new Error("Missing password for AES-GCM.");
@@ -222,7 +221,7 @@ function extractAsciiBlock(text) {
   const ei = text.indexOf(ASCII_END);
   if (bi === -1 || ei === -1 || ei < bi) return null;
   const body = text.slice(bi + ASCII_BEGIN.length, ei).trim();
-  try { return base64ToText(body); } catch (e) { return body; }
+  try { return base64ToText(body); } catch (e) { return null; }
 }
 
 // Marker PNG (non-AES payloads): magic + len(BE) + UTF-8 payload in R/G/B LSBs, in pixel order. Anyone can read it.
@@ -401,6 +400,18 @@ function pngBytesNeeded(payload) {
   return PNG_MAGIC.length + 4 + stringToUtf8Bytes(payload).length;
 }
 
+// Share of horizontally adjacent R/G/B values whose low bits agree. Photos with sensor noise sit near 0.5;
+// flat or gradient images sit near 1, and there the ±1 changes stand out in the LSB plane.
+function lsbAgreement(imageData) {
+  const { data, width } = imageData;
+  let same = 0, total = 0;
+  for (let i = 0; i + 4 < data.length; i += 4) {
+    if ((i / 4 + 1) % width === 0) continue; // last pixel in a row has no right neighbour
+    for (let ch = 0; ch < 3; ch++) { same += ((data[i + ch] ^ data[i + 4 + ch]) & 1) ^ 1; total++; }
+  }
+  return total ? same / total : 1;
+}
+
 // ----- (c) Self-contained HTML artifact -----
 function buildHtmlArtifact(asciiText, payload) {
   const asciiEsc = escapeHtml(asciiText || "(no ASCII generated)");
@@ -420,16 +431,14 @@ pre{white-space:pre;font-size:8px;line-height:1;text-shadow:0 0 4px #00f5ff;over
 <script type="application/json" id="${HTML_PAYLOAD_ID}">${payloadJson}<\/script>
 <div class="note">
   <p>An encrypted payload is embedded in the script tag with id "${HTML_PAYLOAD_ID}".</p>
-  <p>To recover: open Stegatrix, use the Import / Decode panel, load this HTML file,
-  then decrypt with the correct cipher/password. Payload is base64/JSON.</p>
+  <p>To recover: open Stegatrix, choose Recover a message, load this HTML file,
+  then enter the password or key it was hidden with.</p>
 </div>
 </body></html>`;
 }
-// Inverse of the payload encoding above: the raw text content of that script tag back to the payload.
+// Inverse of the payload encoding above: the raw text content of that script tag back to the payload, or null.
 function decodeHtmlPayloadText(text) {
-  const t = text.trim();
-  try { const v = JSON.parse(t); if (typeof v === "string") return v; } catch (e) { /* older unquoted artifact */ }
-  return t;
+  try { const v = JSON.parse(text.trim()); return typeof v === "string" ? v : null; } catch (e) { return null; }
 }
 
 // ----- (d) Zero-width text stego (experimental) -----
@@ -468,6 +477,7 @@ const api = {
   embedPayloadKeyed,
   openPayloadKeyed,
   pngBytesNeeded,
+  lsbAgreement,
   buildAsciiBlock,
   extractAsciiBlock,
   embedPayloadInImageData,
