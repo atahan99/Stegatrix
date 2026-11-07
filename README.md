@@ -80,9 +80,9 @@ Read this before trusting Stegatrix with anything.
 
 Encryption, embedding and extraction all happen locally. Your images, messages and passwords are never sent anywhere.
 
-The app loads no third-party code, has no analytics of its own and makes no network requests after it loads. The `_headers` CSP enforces that: scripts only from the page's own origin, no inline scripts, `connect-src 'none'`. Saved as a file, it runs fully offline.
+The app itself loads no third-party code and makes no network requests. The `_headers` CSP enforces that: no inline scripts, no `eval`, and the only outside origins allowed are Cloudflare's cookieless Web Analytics beacon (`static.cloudflareinsights.com`) and its reporting endpoint. Saved as a file, it runs fully offline with no analytics.
 
-The hosted demo sits behind Cloudflare, which runs bot protection and blocks traffic from some regions at the edge. Cloudflare's bot protection injects an inline detection script into the page; the CSP refuses to run it, so you'll see that refusal in the browser console. If you'd rather not touch Cloudflare at all, clone the repo and open `index.html`.
+The hosted demo sits behind Cloudflare, which runs bot protection and blocks traffic from some regions at the edge. The hosted demo counts visits with Cloudflare Web Analytics, which sets no cookies and never sees your images, messages or passwords. Cloudflare's bot protection also injects an inline detection script; the CSP refuses to run it, so you'll see that refusal in the browser console. If you'd rather not touch Cloudflare at all, clone the repo and open `index.html`.
 
 ## Screenshots
 
@@ -98,7 +98,7 @@ The hosted demo sits behind Cloudflare, which runs bot protection and blocks tra
 - **One PBKDF2 output, two uses.** It is the AES-GCM key, and it's also the input to HKDF, which derives the separate AES-CTR key that drives the pixel order. HKDF with its own `info` label gives an independent key, so the two uses don't interact. A future format version would derive both keys through HKDF for a cleaner separation; doing it now would break existing files.
 - **LSB matching, not replacement.** Replacement is one line of code and is caught by chi-square and RS analysis. Matching costs a random coin per changed bit.
 - **Same error for "wrong password" and "nothing here."** A keyed PNG should be indistinguishable from a plain image, so failure can't say which it was.
-- **Strict CSP over convenience.** No inline scripts, no `eval`, no network access. Inline `style` attributes are still allowed because the ASCII renderer colors characters one by one.
+- **Strict CSP over convenience.** No inline scripts, no `eval`, no network access beyond Cloudflare's analytics beacon on the hosted demo. Inline `style` attributes are still allowed because the ASCII renderer colors characters one by one.
 
 ## Run it locally
 
